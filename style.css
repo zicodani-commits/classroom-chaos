@@ -1,0 +1,29 @@
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #1a1a1a;
+    color: #ffffff;
+    font-family: 'Comic Sans MS', 'Arial', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+}
+
+#game-container {
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 6px solid #4e3629;
+    background: #000;
+}
+
+canvas {
+    display: block;
+    width: 800px;
+    height: 600px;
+    background: #f5f5dc;
+}
