@@ -11,6 +11,100 @@ import {
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+let audioCtx = null;
+
+// --- PROCEDURAL AUDIO GENERATION (WEB AUDIO API) ---
+
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+}
+
+function playSound(type) {
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    const now = audioCtx.currentTime;
+
+    switch(type) {
+        case 'click':
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(600, now);
+            osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+            gainNode.gain.setValueAtTime(0.12, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+            osc.start(now);
+            osc.stop(now + 0.1);
+            break;
+        case 'success':
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(350, now);
+            osc.frequency.setValueAtTime(500, now + 0.08);
+            osc.frequency.setValueAtTime(750, now + 0.16);
+            gainNode.gain.setValueAtTime(0.1, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+            osc.start(now);
+            osc.stop(now + 0.35);
+            break;
+        case 'fail':
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(160, now);
+            osc.frequency.linearRampToValueAtTime(70, now + 0.35);
+            gainNode.gain.setValueAtTime(0.15, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+            osc.start(now);
+            osc.stop(now + 0.35);
+            break;
+        case 'throw':
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(200, now);
+            osc.frequency.exponentialRampToValueAtTime(700, now + 0.12);
+            gainNode.gain.setValueAtTime(0.08, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+            osc.start(now);
+            osc.stop(now + 0.12);
+            break;
+        case 'splat':
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(100, now);
+            osc.frequency.exponentialRampToValueAtTime(35, now + 0.25);
+            gainNode.gain.setValueAtTime(0.25, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+            osc.start(now);
+            osc.stop(now + 0.25);
+            break;
+        case 'bell':
+            // High metal ringing
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(987.77, now); // B5 Note
+            gainNode.gain.setValueAtTime(0.2, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 1.2);
+            osc.start(now);
+            osc.stop(now + 1.2);
+
+            // Secondary oscillator for metallic ring
+            const osc2 = audioCtx.createOscillator();
+            const gain2 = audioCtx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(1250, now);
+            osc2.connect(gain2);
+            gain2.connect(audioCtx.destination);
+            gain2.gain.setValueAtTime(0.1, now);
+            gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.9);
+            osc2.start(now);
+            osc2.stop(now + 0.9);
+            break;
+    }
+}
+
 // --- PROCEDURAL DRAWING UTILITIES ---
 
 function drawRoundedRect(x, y, w, h, radius, fill, stroke, strokeWidth) {
@@ -42,7 +136,7 @@ function spawnFloatingText(x, y, text, color) {
         y: y,
         text: text,
         color: color || '#FFF',
-        life: 1.0 // decays to 0.0
+        life: 1.2 // seconds
     });
 }
 
@@ -135,7 +229,8 @@ function drawHairstyle(x, y, style) {
             break;
         case 8: // Slick Back Black
             ctx.fillStyle = '#2c3e50';
-            ctx.beginPath(); ctx.arc(x, y - 14, 16, Math.PI, 0); ctx.fill(); ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(x, y - 14, 16, Math.PI, 0); ctx.fill(); ctx.stroke();
             ctx.beginPath();
             ctx.moveTo(x - 16, y - 14);
             ctx.quadraticCurveTo(x, y - 30, x + 16, y - 14);
@@ -156,1279 +251,1138 @@ function drawHairstyle(x, y, style) {
         case 10: // Fluffy Blue Pompadour
             ctx.fillStyle = '#2980b9';
             ctx.beginPath();
-            ctx.arc(x - 5, y - 16, 12, 0, Math.PI*2);
-            ctx.arc(x + 8, y - 20, 14, 0, Math.PI*2);
-            ctx.arc(x - 8, y - 24, 15, 0, Math.PI*2);
+            ctx.arc(x, y - 18, 14, 0, Math.PI * 2);
+            ctx.arc(x - 8, y - 24, 12, 0, Math.PI * 2);
+            ctx.arc(x + 10, y - 20, 10, 0, Math.PI * 2);
             ctx.fill(); ctx.stroke();
             break;
     }
 }
 
-function drawStudentFace(s) {
-    const x = s.currentX;
-    const y = s.currentY;
-    const expr = s.expressionState;
+function drawDesk(x, y) {
+    // Desk Leg Shadows
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.fillRect(x - 42, y + 15, 6, 35);
+    ctx.fillRect(x + 36, y + 15, 6, 35);
 
-    let faceSkinColor = '#ffe0bd';
-    if (expr === 'AGGRESSIVE') {
-        faceSkinColor = '#f5b7b1';
-    }
-    drawWobblyCircle(x, y - 10, 17, faceSkinColor, '#000000', 2.5);
+    // Desk Legs
+    ctx.fillStyle = '#34495e';
+    ctx.fillRect(x - 40, y + 10, 5, 40);
+    ctx.fillRect(x + 35, y + 10, 5, 40);
 
-    drawHairstyle(x, y - 5, s.hairStyle);
+    // Desktop
+    drawRoundedRect(x - 50, y + 2, 100, 22, 6, '#d35400', '#5c3a21', 3);
 
-    if (s.isBlinking) {
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.moveTo(x - 11, y - 11); ctx.lineTo(x - 3, y - 11); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(x + 3, y - 11); ctx.lineTo(x + 11, y - 11); ctx.stroke();
-    } else {
-        ctx.fillStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(x - 7, y - 11, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        ctx.beginPath(); ctx.arc(x + 7, y - 11, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-
-        ctx.fillStyle = '#000000';
-        let pxOffset = 0, pyOffset = 0;
-        if (expr === 'SNEAKY') {
-            pxOffset = 2.5;
-        } else if (expr === 'ANGRY' || expr === 'AGGRESSIVE') {
-            pyOffset = -1.5;
-        }
-        ctx.beginPath(); ctx.arc(x - 7 + pxOffset, y - 11 + pyOffset, 2, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x + 7 + pxOffset, y - 11 + pyOffset, 2, 0, Math.PI * 2); ctx.fill();
-
-        if (expr === 'BORED') {
-            ctx.fillStyle = faceSkinColor;
-            ctx.beginPath();
-            ctx.arc(x - 7, y - 15, 5, 0, Math.PI, true);
-            ctx.arc(x + 7, y - 15, 5, 0, Math.PI, true);
-            ctx.fill(); ctx.stroke();
-        } else if (expr === 'ANGRY' || expr === 'AGGRESSIVE') {
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 2.5;
-            ctx.beginPath(); ctx.moveTo(x - 13, y - 17); ctx.lineTo(x - 3, y - 13); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(x + 13, y - 17); ctx.lineTo(x + 3, y - 13); ctx.stroke();
-        } else if (expr === 'EXCITED') {
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath(); ctx.arc(x - 7, y - 16, 4, Math.PI, 0); ctx.stroke();
-            ctx.beginPath(); ctx.arc(x + 7, y - 16, 4, Math.PI, 0); ctx.stroke();
-        }
-    }
-
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 2.5;
-    if (expr === 'BORED') {
-        ctx.beginPath(); ctx.arc(x, y + 3, 4, Math.PI, 0, true); ctx.stroke();
-    } else if (expr === 'EXCITED') {
-        ctx.fillStyle = '#e74c3c';
-        ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI); ctx.closePath(); ctx.fill(); ctx.stroke();
-    } else if (expr === 'SNEAKY') {
-        ctx.beginPath(); ctx.moveTo(x - 5, y - 1); ctx.quadraticCurveTo(x + 5, y + 2, x + 6, y - 3); ctx.stroke();
-    } else if (expr === 'ANGRY') {
-        ctx.beginPath(); ctx.moveTo(x - 6, y + 1); ctx.lineTo(x + 6, y); ctx.stroke();
-    } else if (expr === 'AGGRESSIVE') {
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(x - 7, y - 2, 14, 6);
-        ctx.strokeRect(x - 7, y - 2, 14, 6);
-        ctx.beginPath(); ctx.moveTo(x - 7, y + 1); ctx.lineTo(x + 7, y + 1); ctx.stroke();
-    } else {
-        ctx.beginPath(); ctx.arc(x, y - 1, 5, 0, Math.PI); ctx.stroke();
-    }
-}
-
-function drawStudent(s) {
-    ctx.fillStyle = s.bodyColor;
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 2.5;
-    drawRoundedRect(s.currentX - 16, s.currentY + 12, 32, 28, 6, s.bodyColor, '#000000', 2.5);
-
-    drawStudentFace(s);
-
-    if (state.selectedStudentId === s.id) {
-        const arrowY = s.currentY - 45 + Math.sin(Date.now() / 100) * 4;
-        ctx.fillStyle = '#e74c3c';
-        ctx.beginPath();
-        ctx.moveTo(s.currentX, arrowY);
-        ctx.lineTo(s.currentX - 8, arrowY - 10);
-        ctx.lineTo(s.currentX - 4, arrowY - 10);
-        ctx.lineTo(s.currentX - 4, arrowY - 20);
-        ctx.lineTo(s.currentX + 4, arrowY - 20);
-        ctx.lineTo(s.currentX + 4, arrowY - 10);
-        ctx.lineTo(s.currentX + 8, arrowY - 10);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-    }
-
-    if (s.state === 'THROWING') {
-        ctx.fillStyle = '#3498db';
-        ctx.beginPath();
-        ctx.moveTo(s.currentX + 18, s.currentY - 24);
-        ctx.bezierCurveTo(s.currentX + 14, s.currentY - 18, s.currentX + 22, s.currentY - 18, s.currentX + 18, s.currentY - 24);
-        ctx.fill();
-        ctx.stroke();
-    }
-}
-
-function drawBackground() {
-    ctx.fillStyle = '#f5f5dc';
-    ctx.fillRect(0, 0, 800, 600);
-
-    ctx.strokeStyle = '#e5dec9';
-    ctx.lineWidth = 2;
-    for (let i = 0; i < 600; i += 40) {
-        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(800, i + 80); ctx.stroke();
-    }
-
-    // Clean Dark Green Blackboard Slate (Blurry/Hazy text has been removed completely)
-    drawRoundedRect(120, 15, 560, 100, 8, '#1e3f20', '#5c4033', 8);
-
-    const teachX = 400;
-    const teachY = 120;
-    
-    ctx.fillStyle = '#2980b9';
-    drawRoundedRect(teachX - 25, teachY + 5, 50, 40, 8, '#2980b9', '#000', 3);
-
-    let teachFaceFill = '#fcd5b5';
-    if (state.chaosMeter > 75.0) teachFaceFill = '#e74c3c';
-    else if (state.chaosMeter > 40.0) teachFaceFill = '#f5b7b1';
-    drawWobblyCircle(teachX, teachY - 15, 24, teachFaceFill, '#000', 3);
-
-    ctx.fillStyle = '#95a5a6';
+    // Sheet of Homework Paper on Desk
+    drawRoundedRect(x - 22, y + 6, 20, 12, 2, '#ffffff', '#bdc3c7', 1.5);
+    ctx.strokeStyle = '#7f8c8d';
+    ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.arc(teachX - 22, teachY - 15, 8, 0, Math.PI*2);
-    ctx.arc(teachX + 22, teachY - 15, 8, 0, Math.PI*2);
-    ctx.fill(); ctx.stroke();
+    ctx.moveTo(x - 18, y + 10); ctx.lineTo(x - 6, y + 10);
+    ctx.moveTo(x - 18, y + 13); ctx.lineTo(x - 10, y + 13);
+    ctx.stroke();
 
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 3;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.beginPath(); ctx.arc(teachX - 10, teachY - 16, 11, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.arc(teachX + 11, teachY - 14, 11, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(teachX - 1, teachY - 15); ctx.lineTo(teachX + 2, teachY - 15); ctx.stroke();
+    // Red Pencil Holder Cup
+    ctx.beginPath();
+    ctx.arc(x + 24, y + 8, 5, 0, Math.PI*2);
+    ctx.fillStyle = '#e74c3c';
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#c0392b';
+    ctx.stroke();
+}
 
-    ctx.fillStyle = '#000';
-    if (state.chaosMeter > 75.0) {
-        ctx.lineWidth = 1.5;
+function drawStudent(student) {
+    const x = student.currentX;
+    const y = student.currentY;
+
+    // 1. Chair backrest (Seated students only)
+    if (student.state !== 'STANDING') {
+        drawRoundedRect(x - 22, y + 10, 44, 25, 6, '#7e5109', '#513405', 2.5);
+        ctx.strokeStyle = '#2c3e50';
+        ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.arc(teachX - 10, teachY - 16, 4, 0, Math.PI*2);
-        ctx.arc(teachX + 11, teachY - 14, 4, 0, Math.PI*2);
+        ctx.moveTo(x - 15, y + 30); ctx.lineTo(x - 15, y + 42);
+        ctx.moveTo(x + 15, y + 30); ctx.lineTo(x + 15, y + 42);
         ctx.stroke();
+    }
+
+    // 2. Body / Tunic
+    ctx.fillStyle = student.bodyColor;
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x - 18, y + 40);
+    ctx.quadraticCurveTo(x, y + 12, x + 18, y + 40);
+    ctx.lineTo(x + 12, y + 48);
+    ctx.lineTo(x - 12, y + 48);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Hands
+    ctx.fillStyle = '#ffdbac'; // standard peach skin
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    if (student.state === 'DISTRACTED' && student.expressionState === 'PHONE') {
+        // Hands holding a glowing screen
+        ctx.beginPath();
+        ctx.arc(x - 6, y + 32, 4.5, 0, Math.PI * 2);
+        ctx.arc(x + 6, y + 32, 4.5, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+
+        // Phone Case
+        drawRoundedRect(x - 8, y + 23, 16, 9, 1.5, '#34495e', '#2c3e50', 1);
+
+        // Screen Glow effect
+        const glow = ctx.createRadialGradient(x, y + 25, 2, x, y + 25, 14);
+        glow.addColorStop(0, 'rgba(52, 152, 219, 0.7)');
+        glow.addColorStop(1, 'rgba(52, 152, 219, 0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(x, y + 25, 14, 0, Math.PI * 2);
+        ctx.fill();
     } else {
-        ctx.beginPath(); ctx.arc(teachX - 10, teachY - 16, 2, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(teachX + 11, teachY - 14, 2, 0, Math.PI*2); ctx.fill();
-    }
-
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 3;
-    if (state.chaosMeter > 75.0) {
-        ctx.fillStyle = '#000';
-        ctx.beginPath(); ctx.arc(teachX, teachY - 2, 7, 0, Math.PI*2); ctx.fill();
-    } else if (state.chaosMeter > 40.0) {
+        // Static relaxed hands
         ctx.beginPath();
-        ctx.moveTo(teachX - 8, teachY - 4);
-        ctx.quadraticCurveTo(teachX - 4, teachY - 7, teachX, teachY - 4);
-        ctx.quadraticCurveTo(teachX + 4, teachY - 1, teachX + 8, teachY - 4);
-        ctx.stroke();
-    } else {
-        ctx.beginPath(); ctx.arc(teachX, teachY - 5, 5, 0, Math.PI); ctx.stroke();
-    }
-
-    drawRoundedRect(340, 130, 120, 50, 6, '#8e44ad', '#5c4033', 4);
-}
-
-function drawChairs() {
-    const colSpacing = 135;
-    const startX = 130;
-    const row1Y = 240;
-    const row2Y = 390;
-
-    for (let i = 0; i < 10; i++) {
-        const isRow2 = i >= 5;
-        const colIndex = i % 5;
-        const dx = startX + (colIndex * colSpacing);
-        const dy = isRow2 ? row2Y : row1Y;
-
-        ctx.fillStyle = '#5c4033';
-        ctx.fillRect(dx - 18, dy - 24, 36, 12);
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2.5;
-        ctx.strokeRect(dx - 18, dy - 24, 36, 12);
-
-        ctx.beginPath();
-        ctx.moveTo(dx - 12, dy - 12); ctx.lineTo(dx - 12, dy);
-        ctx.moveTo(dx + 12, dy - 12); ctx.lineTo(dx + 12, dy);
-        ctx.stroke();
-    }
-}
-
-function drawDeskSlabs() {
-    const colSpacing = 135;
-    const startX = 130;
-    const row1Y = 240;
-    const row2Y = 390;
-
-    for (let i = 0; i < 10; i++) {
-        const isRow2 = i >= 5;
-        const colIndex = i % 5;
-        const dx = startX + (colIndex * colSpacing);
-        const dy = isRow2 ? row2Y : row1Y;
-
-        drawRoundedRect(dx - 30, dy, 60, 40, 4, '#a0522d', '#5c4033', 3);
-
-        ctx.strokeStyle = '#f1c40f';
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(dx - 18, dy + 10); ctx.lineTo(dx - 6, dy + 14);
-        ctx.stroke();
-    }
-}
-
-function drawFightCloud(s1, s2) {
-    const midX = (s1.currentX + s2.currentX) / 2;
-    const midY = (s1.currentY + s2.currentY) / 2;
-
-    const puffs = 8;
-    ctx.fillStyle = '#e5e7eb';
-    ctx.strokeStyle = '#4b5563';
-    ctx.lineWidth = 3;
-
-    for (let i = 0; i < puffs; i++) {
-        const angle = (i / puffs) * Math.PI * 2 + (Date.now() / 300);
-        const ox = midX + Math.cos(angle) * 16;
-        const oy = midY + Math.sin(angle) * 14;
-        const size = 28 + (Math.sin(Date.now() / 80 + i) * 6);
-        ctx.beginPath();
-        ctx.arc(ox, oy, size, 0, Math.PI*2);
+        ctx.arc(x - 11, y + 39, 4, 0, Math.PI * 2);
+        ctx.arc(x + 11, y + 39, 4, 0, Math.PI * 2);
         ctx.fill(); ctx.stroke();
     }
 
-    ctx.fillStyle = '#f1c40f';
-    for (let i = 0; i < 5; i++) {
-        const angle = (i / 5) * Math.PI * 2 - (Date.now() / 150);
-        const sx = midX + Math.cos(angle) * 45;
-        const sy = midY + Math.sin(angle) * 40;
-        ctx.beginPath();
-        ctx.arc(sx, sy, 5, 0, Math.PI*2);
-        ctx.fill();
+    // 3. Face Head structure
+    let bobbing = 0;
+    if (student.state === 'STANDING') {
+        bobbing = Math.sin(Date.now() * 0.01) * 2.5;
+    } else if (student.state === 'TALKING') {
+        bobbing = Math.sin(Date.now() * 0.02) * 1.5;
     }
+    const headX = x;
+    const headY = y + 5 + bobbing;
+    drawWobblyCircle(headX, headY, 17, '#ffdbac', '#000000', 3);
 
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 3.5;
-    ctx.beginPath();
-    ctx.moveTo(midX - 25, midY - 5); ctx.lineTo(midX - 45, midY - 15);
-    ctx.moveTo(midX + 22, midY + 15); ctx.lineTo(midX + 42, midY + 25);
-    ctx.stroke();
+    // 4. Hair Rendering
+    drawHairstyle(headX, headY, student.hairStyle);
 
-    ctx.fillStyle = '#e74c3c';
-    ctx.font = '900 16px "Arial Black", sans-serif';
-    const bounce = Math.sin(Date.now() / 80) * 4;
-    ctx.fillText("POW!", midX - 35, midY - 25 + bounce);
-    ctx.fillStyle = '#f39c12';
-    ctx.fillText("BAM!", midX + 15, midY + 28 - bounce);
-}
-
-function drawSpeechBubble(s) {
-    const x = s.currentX + 25;
-    const y = s.currentY - 45;
-
-    ctx.font = 'bold 12px "Courier New"';
-    const textWidth = ctx.measureText(s.talkingText).width;
-    const bubbleW = Math.max(textWidth + 16, 110);
-    const bubbleH = 34;
-
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
-    drawRoundedRect(x + 2, y + 2, bubbleW, bubbleH, 8, 'rgba(0,0,0,0.15)', null);
-
-    drawRoundedRect(x, y, bubbleW, bubbleH, 8, '#ffffff', '#000000', 2);
-
+    // 5. Eyes, Brows & Expression details
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
+
+    const spacing = 5.5;
+    const eyeHeight = headY - 2;
+
+    if (student.isBlinking) {
+        ctx.beginPath();
+        ctx.moveTo(headX - spacing - 4, eyeHeight); ctx.lineTo(headX - spacing + 4, eyeHeight);
+        ctx.moveTo(headX + spacing - 4, eyeHeight); ctx.lineTo(headX + spacing + 4, eyeHeight);
+        ctx.stroke();
+    } else {
+        // Left eye
+        ctx.beginPath();
+        ctx.arc(headX - spacing, eyeHeight, 3.8, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+        // Right eye
+        ctx.beginPath();
+        ctx.arc(headX + spacing, eyeHeight, 3.8, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+
+        // Pupils
+        ctx.fillStyle = '#000000';
+        let lookX = 0;
+        let lookY = 1.2; // default down-ish look
+        if (student.state === 'TALKING') {
+            lookX = (student.id % 2 === 0) ? 1.5 : -1.5;
+            lookY = 0;
+        } else if (student.expressionState === 'PHONE') {
+            lookX = 0; lookY = 2.0; // looking down at phone
+        }
+        ctx.beginPath();
+        ctx.arc(headX - spacing + lookX, eyeHeight + lookY, 1.5, 0, Math.PI * 2);
+        ctx.arc(headX + spacing + lookX, eyeHeight + lookY, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Brows
+    ctx.lineWidth = 2;
+    if (student.expressionState === 'ANGRY' || student.state === 'THROWING') {
+        ctx.beginPath();
+        ctx.moveTo(headX - spacing - 4, eyeHeight - 5); ctx.lineTo(headX - spacing + 3, eyeHeight - 3);
+        ctx.moveTo(headX + spacing + 4, eyeHeight - 5); ctx.lineTo(headX + spacing - 3, eyeHeight - 3);
+        ctx.stroke();
+    } else if (student.expressionState === 'HAPPY' || student.state === 'QUIETED') {
+        ctx.beginPath();
+        ctx.arc(headX - spacing, eyeHeight - 3, 2.5, Math.PI, 0);
+        ctx.arc(headX + spacing, eyeHeight - 3, 2.5, Math.PI, 0);
+        ctx.stroke();
+    } else {
+        ctx.beginPath();
+        ctx.moveTo(headX - spacing - 4, eyeHeight - 4); ctx.lineTo(headX - spacing + 3, eyeHeight - 4);
+        ctx.moveTo(headX + spacing - 3, eyeHeight - 4); ctx.lineTo(headX + spacing + 4, eyeHeight - 4);
+        ctx.stroke();
+    }
+
+    // Mouth
+    const mouthHeight = headY + 7;
+    ctx.lineWidth = 2.5;
+    if (student.state === 'TALKING') {
+        const oScale = 3.5 + Math.sin(Date.now() * 0.04) * 1.5;
+        ctx.fillStyle = '#800c0c';
+        ctx.beginPath();
+        ctx.arc(headX, mouthHeight, oScale, 0, Math.PI*2);
+        ctx.fill(); ctx.stroke();
+    } else if (student.expressionState === 'HAPPY' || student.state === 'QUIETED') {
+        ctx.beginPath();
+        ctx.arc(headX, mouthHeight - 2, 4.5, 0, Math.PI);
+        ctx.stroke();
+    } else if (student.expressionState === 'PHONE' || student.expressionState === 'ANGRY') {
+        ctx.beginPath();
+        ctx.moveTo(headX - 4, mouthHeight); ctx.quadraticCurveTo(headX, mouthHeight - 3, headX + 4, mouthHeight);
+        ctx.stroke();
+    } else {
+        // Bored / attentive flat mouth
+        ctx.beginPath();
+        ctx.moveTo(headX - 5, mouthHeight); ctx.lineTo(headX + 5, mouthHeight);
+        ctx.stroke();
+    }
+
+    // 6. Action-State Warning Badges
+    if (student.state !== 'ATTENTIVE' && student.state !== 'QUIETED') {
+        let badge = '';
+        if (student.state === 'TALKING') badge = '🗣️';
+        else if (student.state === 'STANDING') badge = '🏃';
+        else if (student.state === 'DISTRACTED') badge = '📱';
+        else if (student.state === 'THROWING') badge = '🎒';
+
+        if (badge) {
+            const bY = headY - 36 + Math.sin(Date.now() * 0.008) * 2.5;
+            drawRoundedRect(headX - 16, bY - 14, 32, 23, 5, '#fff', '#e74c3c', 2);
+            ctx.fillStyle = '#fff';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(badge, headX, bY + 3);
+        }
+    } else if (student.state === 'QUIETED') {
+        // Shiny green halo for quieted students
+        ctx.strokeStyle = '#2ecc71';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.ellipse(headX, headY - 24 + Math.sin(Date.now() * 0.01) * 1.5, 9, 3, 0, 0, Math.PI*2);
+        ctx.stroke();
+    }
+
+    // 7. Bubble Chat Text
+    if (student.state === 'TALKING' && student.talkingText) {
+        ctx.font = 'bold 12px "Comic Sans MS", Arial, sans-serif';
+        const str = student.talkingText;
+        const metrics = ctx.measureText(str);
+        const padX = 12;
+        const padY = 7;
+        const bW = metrics.width + padX * 2;
+        const bH = 18 + padY * 2;
+        const bx = headX - bW / 2;
+        const by = headY - 72 + Math.sin(Date.now() * 0.005) * 2;
+
+        drawRoundedRect(bx, by, bW, bH, 10, '#ffffff', '#2c3e50', 2.5);
+
+        // Tail
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#2c3e50';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(headX - 7, by + bH - 1.5);
+        ctx.lineTo(headX, by + bH + 8);
+        ctx.lineTo(headX + 7, by + bH - 1.5);
+        ctx.closePath();
+        ctx.fill(); ctx.stroke();
+
+        // Stitch patch inside speech bubble
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(headX - 6, by + bH - 3, 12, 4);
+
+        ctx.fillStyle = '#2c3e50';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(str, headX, by + bH / 2);
+    }
+}
+
+// --- RADIAL ACTION MENU ---
+
+function drawRadialMenu(student) {
+    const rx = student.currentX;
+    const ry = student.currentY - 15;
+
+    // Dim background circle
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
     ctx.beginPath();
-    ctx.moveTo(x + 15, y + bubbleH);
-    ctx.lineTo(s.currentX + 8, s.currentY - 8);
-    ctx.lineTo(x + 30, y + bubbleH);
-    ctx.closePath();
+    ctx.arc(rx, ry, RADIAL_RADIUS + 25, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.beginPath();
-    ctx.moveTo(x + 15, y + bubbleH - 1);
-    ctx.lineTo(x + 30, y + bubbleH - 1);
-    ctx.stroke();
+    state.hoveredRadialActionId = '';
 
-    ctx.beginPath();
-    ctx.moveTo(x + 15, y + bubbleH);
-    ctx.lineTo(s.currentX + 8, s.currentY - 8);
-    ctx.moveTo(x + 30, y + bubbleH);
-    ctx.lineTo(s.currentX + 8, s.currentY - 8);
-    ctx.stroke();
+    RADIAL_ACTIONS.forEach(action => {
+        const btnX = rx + Math.cos(action.angle) * RADIAL_RADIUS;
+        const btnY = ry + Math.sin(action.angle) * RADIAL_RADIUS;
 
-    ctx.fillStyle = '#c0392b';
-    ctx.font = 'bold 11px "Comic Sans MS", Arial, sans-serif';
+        const dx = state.mouseX - btnX;
+        const dy = state.mouseY - btnY;
+        const hovered = Math.sqrt(dx * dx + dy * dy) < RADIAL_BTN_SIZE;
+
+        if (hovered) {
+            state.hoveredRadialActionId = action.id;
+        }
+
+        // Action Connector
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(rx, ry);
+        ctx.lineTo(btnX, btnY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Button Base
+        ctx.beginPath();
+        ctx.arc(btnX, btnY, RADIAL_BTN_SIZE, 0, Math.PI * 2);
+        ctx.fillStyle = hovered ? action.hoverColor : action.color;
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // Icon
+        ctx.font = '16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(action.icon, btnX, btnY + 1);
+
+        // Tooltip description
+        if (hovered) {
+            ctx.font = 'bold 12px "Comic Sans MS", Arial, sans-serif';
+            const labelW = ctx.measureText(action.label).width + 12;
+            const tY = btnY < ry ? btnY - 24 : btnY + 24;
+            drawRoundedRect(btnX - labelW/2, tY - 10, labelW, 20, 5, '#2c3e50', '#ffffff', 1.5);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(action.label, btnX, tY);
+        }
+    });
+
+    ctx.font = '11px "Comic Sans MS", Arial, sans-serif';
+    ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
-    ctx.fillText(s.talkingText, x + bubbleW / 2, y + 20);
-    ctx.textAlign = 'left';
+    ctx.fillText("Click classroom to close", rx, ry + RADIAL_RADIUS + 30);
 }
+
+// --- HUD AND USER INTERFACE OVERLAYS ---
 
 function drawHUD() {
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.fillRect(0, 0, 800, 50);
-
-    const thermX = 260;
-    const thermY = 16;
-    const thermW = 280;
-    const thermH = 18;
-
-    ctx.fillStyle = '#7f8c8d';
-    drawRoundedRect(thermX, thermY, thermW, thermH, 8, '#2c3e50', '#ffffff', 2);
-
-    const fluidFillWidth = (state.chaosMeter / 100.0) * (thermW - 4);
-    const grad = ctx.createLinearGradient(thermX, 0, thermX + thermW, 0);
-    grad.addColorStop(0, '#2ecc71');
-    grad.addColorStop(0.5, '#f1c40f');
-    grad.addColorStop(1, '#e74c3c');
-
-    if (fluidFillWidth > 0) {
-        drawRoundedRect(thermX + 2, thermY + 2, fluidFillWidth, thermH - 4, 6, grad, null);
-    }
+    // Chaos Panel
+    const x = 150, y = 556, w = 500, h = 24;
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    drawRoundedRect(120, 542, 560, 48, 10, 'rgba(0,0,0,0.65)');
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = '900 12px "Comic Sans MS", Arial, sans-serif';
-    ctx.fillText("CLASSROOM CHAOS!", thermX + 15, thermY + 13);
-    ctx.fillText(Math.round(state.chaosMeter) + "%", thermX + thermW - 45, thermY + 13);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 18px "Comic Sans MS", Arial, sans-serif';
+    ctx.font = 'bold 12px "Comic Sans MS", Arial, sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText("🔔 TIME REMAINING: " + Math.max(0, Math.ceil(state.classTimer)) + "s", 780, 32);
+    ctx.textBaseline = 'middle';
+    ctx.fillText("CHAOS METER:", x - 10, y + h / 2);
 
-    ctx.textAlign = 'left';
-}
+    drawRoundedRect(x, y, w, h, 6, '#2c3e50', '#ffffff', 2);
 
-function drawRadialMenu(s) {
-    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(s.currentX, s.currentY, RADIAL_RADIUS, 0, Math.PI * 2);
-    ctx.stroke();
+    if (state.chaosMeter > 0) {
+        const fillW = state.chaosMeter * w;
+        const grad = ctx.createLinearGradient(x, y, x + fillW, y);
+        grad.addColorStop(0, '#f1c40f');
+        grad.addColorStop(0.5, '#e67e22');
+        grad.addColorStop(1, '#e74c3c');
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    ctx.arc(s.currentX, s.currentY, RADIAL_RADIUS, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    RADIAL_ACTIONS.forEach(act => {
-        const rx = s.currentX + Math.cos(act.angle) * RADIAL_RADIUS;
-        const ry = s.currentY + Math.sin(act.angle) * RADIAL_RADIUS;
-        
-        const isHovered = state.hoveredRadialActionId === act.id;
-        const size = isHovered ? RADIAL_BTN_SIZE + 4 : RADIAL_BTN_SIZE;
-
-        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.save();
         ctx.beginPath();
-        ctx.arc(rx, ry + 2, size, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.moveTo(x + 6, y);
+        ctx.lineTo(x + fillW, y);
+        ctx.lineTo(x + fillW, y + h);
+        ctx.lineTo(x + 6, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - 6);
+        ctx.lineTo(x, y + 6);
+        ctx.quadraticCurveTo(x, y, x + 6, y);
+        ctx.clip();
 
-        drawWobblyCircle(rx, ry, size, isHovered ? act.hoverColor : act.color, '#000000', 2);
+        ctx.fillStyle = grad;
+        ctx.fillRect(x, y, fillW, h);
 
-        ctx.fillStyle = '#ffffff';
-        ctx.font = isHovered ? 'bold 16px "Comic Sans MS", Arial' : '14px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(act.icon, rx, ry + (isHovered ? 6 : 5));
-        ctx.textAlign = 'left';
-
-        if (isHovered) {
-            ctx.font = '900 11px "Comic Sans MS", Arial, sans-serif';
-            const textW = ctx.measureText(act.label).width;
-            const tipY = ry < s.currentY ? ry - size - 10 : ry + size + 16;
-            
-            drawRoundedRect(rx - (textW/2) - 8, tipY - 12, textW + 16, 18, 4, '#111111', '#ffffff', 1);
-            ctx.fillStyle = '#f1c40f';
-            ctx.textAlign = 'center';
-            ctx.fillText(act.label, rx, tipY);
-            ctx.textAlign = 'left';
+        // Warning Hazard Stripes
+        if (state.chaosMeter > 0.5) {
+            ctx.fillStyle = 'rgba(255,255,255,0.15)';
+            const drift = (Date.now() * 0.04) % 30;
+            for (let s = x - 30 + drift; s < x + fillW; s += 30) {
+                ctx.beginPath();
+                ctx.moveTo(s, y);
+                ctx.lineTo(s + 12, y);
+                ctx.lineTo(s - 3, y + h);
+                ctx.lineTo(s - 15, y + h);
+                ctx.closePath();
+                ctx.fill();
+            }
         }
-    });
-}
-
-function drawFooter() {
-    const footY = 500;
-    ctx.fillStyle = '#2c3e50';
-    ctx.fillRect(0, footY, 800, 100);
-
-    const clipX = 30;
-    const clipY = footY + 10;
-    const clipW = 740;
-    const clipH = 80;
-    drawRoundedRect(clipX, clipY, clipW, clipH, 6, '#dfc19c', '#000000', 2.5);
-
-    drawRoundedRect(360, clipY - 5, 80, 15, 4, '#95a5a6', '#000000', 1.5);
-
-    let countTalk = 0, countWand = 0, countThrow = 0, countFight = 0;
-    state.students.forEach(s => {
-        if (s.state === 'TALKING') countTalk++;
-        else if (s.state === 'WANDERING') countWand++;
-        else if (s.state === 'THROWING') countThrow++;
-        else if (s.state === 'FIGHTING') countFight++;
-    });
-
-    ctx.fillStyle = '#2c3e50';
-    ctx.font = '900 12px "Comic Sans MS", Arial, sans-serif';
-    ctx.fillText("📝 DISRUPTION STATISTICS:", clipX + 25, clipY + 25);
-    
-    ctx.font = 'bold 11px "Comic Sans MS", Arial, sans-serif';
-    ctx.fillStyle = countTalk > 0 ? '#e74c3c' : '#7f8c8d';
-    ctx.fillText("🗣️  TALKING: " + countTalk, clipX + 35, clipY + 45);
-
-    ctx.fillStyle = countWand > 0 ? '#e74c3c' : '#7f8c8d';
-    ctx.fillText("🪑  WANDERING: " + countWand, clipX + 35, clipY + 63);
-
-    ctx.fillStyle = countThrow > 0 ? '#e74c3c' : '#7f8c8d';
-    ctx.fillText("🎒  THROWING: " + (countThrow / 2), clipX + 160, clipY + 45);
-
-    ctx.fillStyle = countFight > 0 ? '#e74c3c' : '#7f8c8d';
-    ctx.fillText("↔️  FIGHTING: " + countFight, clipX + 160, clipY + 63);
-
-    ctx.fillStyle = '#2c3e50';
-    ctx.font = '900 12px "Comic Sans MS", Arial, sans-serif';
-    ctx.fillText("📓 TEACHER'S LOG DIARY:", clipX + 350, clipY + 25);
-
-    let logText = "Drinking my coffee in peace... All quiet.";
-    if (state.chaosMeter > 80.0) {
-        logText = "THEY HAVE TAKEN OVER! SEND REINFORCEMENTS!";
-    } else if (state.chaosMeter > 50.0) {
-        logText = "My left eyelid is twitching. Total chaos is imminent.";
-    } else if (state.chaosMeter > 20.0) {
-        logText = "Spitballs are flying. Must restore order immediately.";
+        ctx.restore();
     }
 
-    ctx.fillStyle = '#111111';
-    ctx.font = 'italic 12px "Comic Sans MS", Arial, sans-serif';
-    ctx.fillText('"' + logText + '"', clipX + 360, clipY + 52);
-
-    ctx.fillStyle = '#7f8c8d';
-    ctx.font = 'bold 9px "Comic Sans MS", Arial, sans-serif';
-    ctx.fillText("TIP: CLICK AN ACTIVE STUDENT TO DISCIPLINE THEM", clipX + 500, clipY + 74);
-}
-
-function drawMainMenu() {
-    ctx.fillStyle = '#2980b9';
-    ctx.fillRect(0, 0, 800, 600);
-
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-    ctx.lineWidth = 3;
-    for(let i=0; i<800; i+=30) {
-        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 600); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(800, i); ctx.stroke();
-    }
-
-    ctx.fillStyle = '#1a252f';
-    ctx.font = '900 48px "Comic Sans MS", Arial, sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText("CLASSROOM CHAOS!", 403, 68);
-    ctx.fillStyle = '#f1c40f';
-    ctx.fillText("CLASSROOM CHAOS!", 400, 65);
+    ctx.fillText(Math.round(state.chaosMeter * 100) + "%", x + w/2, y + h/2 + 1.2);
 
+    // Wall Clock UI (Clock represents Time Remaining)
+    const cx = 745, cy = 55, r = 24;
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 15px "Comic Sans MS", Arial, sans-serif';
-    ctx.fillText("Can you maintain order until the final bell rings?", 400, 105);
-
-    const boardX = 140;
-    const boardY = 135;
-    const boardW = 520;
-    const boardH = 250;
-
-    drawRoundedRect(boardX - 6, boardY - 6, boardW + 12, boardH + 12, 12, '#5c4033');
-    drawRoundedRect(boardX, boardY, boardW, boardH, 8, '#1e3f20');
-
-    ctx.textAlign = 'left';
-
-    ctx.fillStyle = '#f1c40f';
-    ctx.font = '900 16px "Comic Sans MS", Arial, sans-serif';
-    ctx.fillText("📋 CLASSROOM DISCIPLINE PROTOCOL", boardX + 30, boardY + 32);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 12px "Comic Sans MS", Arial, sans-serif';
-    ctx.fillText("Click any misbehaving kid to open their Action Ring, then select:", boardX + 30, boardY + 60);
-
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#2c3e50';
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(boardX + 25, boardY + 75);
-    ctx.lineTo(boardX + boardW - 25, boardY + 75);
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+
+    ctx.strokeStyle = '#95a5a6';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 12; i++) {
+        const ang = (i / 12) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(ang) * (r - 4), cy + Math.sin(ang) * (r - 4));
+        ctx.lineTo(cx + Math.cos(ang) * r, cy + Math.sin(ang) * r);
+        ctx.stroke();
+    }
+
+    // Ticking ratio hand
+    const maxTime = 60.0;
+    const ratio = state.classTimer / maxTime;
+    const clockAng = -Math.PI / 2 + (ratio * Math.PI * 2);
+
+    ctx.strokeStyle = '#2c3e50';
+    ctx.lineWidth = 3.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx, cy - 11);
     ctx.stroke();
 
-    const tableY = boardY + 110;
-    ctx.font = '13px "Courier New"';
+    ctx.strokeStyle = '#e74c3c';
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(clockAng) * 16, cy + Math.sin(clockAng) * 16);
+    ctx.stroke();
 
-    ctx.fillStyle = '#f5b041';
-    ctx.fillText("🗣️ Chatting loudly", boardX + 30, tableY);
-    ctx.fillText("🪑 Wandering around", boardX + 30, tableY + 30);
-    ctx.fillText("🎒 Throwing spitballs", boardX + 30, tableY + 60);
-    ctx.fillText("↔️ Starting fights", boardX + 30, tableY + 90);
-
-    ctx.fillStyle = '#5dade2';
-    ctx.fillText("➔ Choose 'QUIET' (🗣️)", boardX + 270, tableY);
-    ctx.fillStyle = '#58d68d';
-    ctx.fillText("➔ Choose 'SIT DOWN' (🪑)", boardX + 270, tableY + 30);
-    ctx.fillStyle = '#f4d03f';
-    ctx.fillText("➔ Choose 'CONFISCATE' (🎒)", boardX + 270, tableY + 60);
-    ctx.fillStyle = '#af7ac5';
-    ctx.fillText("➔ Choose 'SEPARATE' (↔️)", boardX + 270, tableY + 90);
-
-    // --- VISUAL DIFFICULTY SELECTOR SEGMENT ---
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 12px "Comic Sans MS", Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText("SELECT DIFFICULTY LEVEL:", 400, 394);
-
-    const easyX1 = 210, easyX2 = 310;
-    const medX1 = 330, medX2 = 470;
-    const hardX1 = 490, hardX2 = 590;
-    const diffY = 401;
-    const diffH = 26;
-
-    // Easy Selector Button
-    const easyHover = (state.mouseX >= easyX1 && state.mouseX <= easyX2 && state.mouseY >= diffY && state.mouseY <= diffY + diffH);
-    const isEasySelected = (state.difficulty === 'EASY');
-    ctx.fillStyle = isEasySelected ? '#2ecc71' : (easyHover ? '#27ae60' : '#1a252f');
-    drawRoundedRect(easyX1, diffY, easyX2 - easyX1, diffH, 6, ctx.fillStyle, '#ffffff', isEasySelected ? 2 : 1);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 11px "Comic Sans MS", Arial, sans-serif';
-    ctx.fillText("EASY", (easyX1 + easyX2) / 2, diffY + 16);
-
-    // Medium Selector Button
-    const medHover = (state.mouseX >= medX1 && state.mouseX <= medX2 && state.mouseY >= diffY && state.mouseY <= diffY + diffH);
-    const isMedSelected = (state.difficulty === 'MEDIUM');
-    ctx.fillStyle = isMedSelected ? '#f1c40f' : (medHover ? '#d4ac0d' : '#1a252f');
-    drawRoundedRect(medX1, diffY, medX2 - medX1, diffH, 6, ctx.fillStyle, '#ffffff', isMedSelected ? 2 : 1);
-    ctx.fillStyle = isMedSelected ? '#1a252f' : '#ffffff';
-    ctx.font = 'bold 11px "Comic Sans MS", Arial, sans-serif';
-    ctx.fillText("MEDIUM", (medX1 + medX2) / 2, diffY + 16);
-
-    // Hard Selector Button
-    const hardHover = (state.mouseX >= hardX1 && state.mouseX <= hardX2 && state.mouseY >= diffY && state.mouseY <= diffY + diffH);
-    const isHardSelected = (state.difficulty === 'HARD');
-    ctx.fillStyle = isHardSelected ? '#e74c3c' : (hardHover ? '#c0392b' : '#1a252f');
-    drawRoundedRect(hardX1, diffY, hardX2 - hardX1, diffH, 6, ctx.fillStyle, '#ffffff', isHardSelected ? 2 : 1);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 11px "Comic Sans MS", Arial, sans-serif';
-    ctx.fillText("HARD", (hardX1 + hardX2) / 2, diffY + 16);
-
-    const bobOffset = Math.sin(Date.now() / 200) * 3;
-
-    const leftX = 80;
-    const leftY = 475;
-    ctx.fillStyle = '#5c4033';
-    ctx.fillRect(leftX - 18, leftY + 15, 36, 10);
-    ctx.fillStyle = '#a0522d';
-    drawRoundedRect(leftX - 25, leftY + 25, 50, 30, 4, '#a0522d', '#5c4033', 2);
-    
-    const menuStudentLeft = {
-        id: -99,
-        bodyColor: '#3498db',
-        hairStyle: 3,
-        currentX: leftX,
-        currentY: leftY + bobOffset,
-        isBlinking: (Math.sin(Date.now() / 400) > 0.95),
-        expressionState: 'EXCITED'
-    };
-    drawStudent(menuStudentLeft);
-
-    const rightX = 720;
-    const rightY = 475;
-    ctx.fillStyle = '#5c4033';
-    ctx.fillRect(rightX - 18, rightY + 15, 36, 10);
-    ctx.fillStyle = '#a0522d';
-    drawRoundedRect(rightX - 25, rightY + 25, 50, 30, 4, '#a0522d', '#5c4033', 2);
-
-    const menuStudentRight = {
-        id: -100,
-        bodyColor: '#e74c3c',
-        hairStyle: 6,
-        currentX: rightX,
-        currentY: rightY - bobOffset,
-        isBlinking: (Math.sin(Date.now() / 450) > 0.95),
-        expressionState: 'SNEAKY'
-    };
-    drawStudent(menuStudentRight);
-
-    ctx.font = 'bold 11px "Comic Sans MS", Arial, sans-serif';
-    ctx.textAlign = 'center';
-    
-    drawRoundedRect(leftX - 5, leftY - 72 + bobOffset, 95, 26, 6, '#ffffff', '#000000', 1.5);
-    ctx.fillStyle = '#c0392b';
-    ctx.fillText("Recess yet?", leftX + 42, leftY - 55 + bobOffset);
-    
-    drawRoundedRect(rightX - 90, rightY - 72 - bobOffset, 95, 26, 6, '#ffffff', '#000000', 1.5);
-    ctx.fillStyle = '#c0392b';
-    ctx.fillText("Hehe! Watch!", rightX - 42, rightY - 55 - bobOffset);
-
-    const isHover = (state.mouseX >= 300 && state.mouseX <= 500 && state.mouseY >= 445 && state.mouseY <= 505);
-    const offset = isHover ? 2 : 0;
-    
-    ctx.fillStyle = '#1a252f';
-    drawRoundedRect(300, 445 + 5, 200, 60, 15, '#1a252f');
-    drawRoundedRect(300, 445 + offset, 200, 60, 15, isHover ? '#27ae60' : '#2ecc71', '#ffffff', 3);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 22px "Comic Sans MS", Arial, sans-serif';
-    ctx.fillText("START GAME", 400, 483 + offset);
-
-    ctx.textAlign = 'left';
+    ctx.fillStyle = '#2c3e50';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 3.5, 0, Math.PI*2);
+    ctx.fill();
 }
 
-function drawGameOver() {
-    ctx.fillStyle = 'rgba(0,0,0,0.85)';
-    ctx.fillRect(0, 0, 800, 600);
+function drawMainMenuScreen() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.84)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const tilt = Math.sin(Date.now() * 0.003) * 10;
+    ctx.save();
+    ctx.translate(canvas.width / 2, 160 + tilt);
+    ctx.rotate(Math.sin(Date.now() * 0.001) * 0.03);
+
+    ctx.font = 'bold 50px "Comic Sans MS", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    ctx.fillStyle = '#000000';
+    ctx.fillText("CARTOON CLASSROOM", 0, 4);
+    ctx.fillText("CHAOS!", 0, 64);
+    ctx.fillText("CARTOON CLASSROOM", 4, 0);
+    ctx.fillText("CHAOS!", 4, 60);
+
+    ctx.fillStyle = '#f1c40f';
+    ctx.strokeStyle = '#d35400';
+    ctx.lineWidth = 4;
+    ctx.fillText("CARTOON CLASSROOM", 0, 0);
+    ctx.strokeText("CARTOON CLASSROOM", 0, 0);
 
     ctx.fillStyle = '#e74c3c';
-    ctx.font = '900 46px "Comic Sans MS", Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText("CLASSROOM OUT OF CONTROL!", 400, 140);
-
-    const teachX = 400;
-    const teachY = 250;
-    
-    drawWobblyCircle(teachX, teachY, 35, '#fcd5b5', '#000000', 3);
-    
-    ctx.fillStyle = '#95a5a6';
-    ctx.beginPath();
-    ctx.arc(teachX - 32, teachY, 10, 0, Math.PI * 2);
-    ctx.arc(teachX + 32, teachY, 10, 0, Math.PI * 2);
-    ctx.fill(); ctx.stroke();
-
-    ctx.fillStyle = '#e59866';
-    ctx.beginPath(); ctx.arc(teachX, teachY - 2, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-
-    ctx.strokeStyle = '#000000'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(teachX - 22, teachY - 26); ctx.lineTo(teachX - 8, teachY - 20); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(teachX + 22, teachY - 26); ctx.lineTo(teachX + 8, teachY - 20); ctx.stroke();
-
-    ctx.beginPath(); ctx.arc(teachX - 14, teachY - 14, 13, 0, Math.PI * 2); ctx.stroke();
-    ctx.beginPath(); ctx.arc(teachX + 14, teachY - 14, 13, 0, Math.PI * 2); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(teachX - 1, teachY - 14); ctx.lineTo(teachX + 1, teachY - 14); ctx.stroke();
-
-    ctx.strokeStyle = '#000000'; ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(teachX - 20, teachY - 18); ctx.lineTo(teachX - 8, teachY - 10);
-    ctx.moveTo(teachX - 8, teachY - 18); ctx.lineTo(teachX - 20, teachY - 10);
-    ctx.moveTo(teachX + 8, teachY - 18); ctx.lineTo(teachX + 20, teachY - 10);
-    ctx.moveTo(teachX + 20, teachY - 18); ctx.lineTo(teachX + 8, teachY - 10);
-    ctx.stroke();
-
-    ctx.fillStyle = '#78281f';
-    ctx.beginPath();
-    ctx.moveTo(teachX - 18, teachY + 12);
-    ctx.quadraticCurveTo(teachX, teachY + 5, teachX + 18, teachY + 12);
-    ctx.quadraticCurveTo(teachX + 12, teachY + 25, teachX, teachY + 25);
-    ctx.quadraticCurveTo(teachX - 12, teachY + 25, teachX - 18, teachY + 12);
-    ctx.closePath(); ctx.fill(); ctx.stroke();
-
-    ctx.fillStyle = '#3498db';
-    ctx.beginPath();
-    ctx.arc(teachX - 14, teachY + 8, 5, 0, Math.PI * 2);
-    ctx.arc(teachX + 14, teachY + 8, 5, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = '#3498db'; ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(teachX - 14, teachY + 8); ctx.quadraticCurveTo(teachX - 22, teachY + 22, teachX - 16, teachY + 36);
-    ctx.moveTo(teachX + 14, teachY + 8); ctx.quadraticCurveTo(teachX + 22, teachY + 22, teachX + 16, teachY + 36);
-    ctx.stroke();
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 15px "Comic Sans MS", Arial, sans-serif';
-    ctx.fillText("The principal dismissed you from your duties due to extreme volume levels.", 400, 360);
-
-    const isHover = (state.mouseX >= 320 && state.mouseX <= 480 && state.mouseY >= 440 && state.mouseY <= 500);
-    const offset = isHover ? 2 : 0;
-
-    ctx.fillStyle = '#1a252f';
-    drawRoundedRect(320, 440 + 5, 160, 60, 15, '#1a252f');
-    drawRoundedRect(320, 440 + offset, 160, 60, 15, isHover ? '#e67e22' : '#f39c12', '#ffffff', 3);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 20px "Comic Sans MS", Arial, sans-serif';
-    ctx.fillText("RETRY", 400, 478 + offset);
-
-    ctx.textAlign = 'left';
-}
-
-function drawVictory() {
-    ctx.fillStyle = 'rgba(46, 204, 113, 0.95)';
-    ctx.fillRect(0, 0, 800, 600);
-
-    ctx.fillStyle = 'rgba(241, 196, 15, 0.4)';
-    for (let i = 0; i < 6; i++) {
-        const angle = (i / 6) * Math.PI * 2 + (Date.now() / 800);
-        const sx = 400 + Math.cos(angle) * 160;
-        const sy = 280 + Math.sin(angle) * 160;
-        ctx.beginPath(); ctx.arc(sx, sy, 25, 0, Math.PI*2); ctx.fill();
-    }
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 46px "Comic Sans MS", Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText("CLASS DISMISSED SUCCESSFULLY!", 400, 130);
-
-    const teachX = 400;
-    const teachY = 240;
-    
-    drawWobblyCircle(teachX, teachY, 35, '#ffe0bd', '#000000', 3);
-    
-    ctx.fillStyle = '#95a5a6';
-    ctx.beginPath();
-    ctx.arc(teachX - 32, teachY, 10, 0, Math.PI * 2);
-    ctx.arc(teachX + 32, teachY, 10, 0, Math.PI * 2);
-    ctx.fill(); ctx.stroke();
-
-    ctx.fillStyle = '#e59866';
-    ctx.beginPath(); ctx.arc(teachX, teachY - 2, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-
-    ctx.strokeStyle = '#000000'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(teachX - 14, teachY - 22, 6, Math.PI, 0); ctx.stroke();
-    ctx.beginPath(); ctx.arc(teachX + 14, teachY - 22, 6, Math.PI, 0); ctx.stroke();
-
-    ctx.beginPath(); ctx.arc(teachX - 14, teachY - 14, 13, 0, Math.PI * 2); ctx.stroke();
-    ctx.beginPath(); ctx.arc(teachX + 14, teachY - 14, 13, 0, Math.PI * 2); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(teachX - 1, teachY - 14); ctx.lineTo(teachX + 1, teachY - 14); ctx.stroke();
-
-    ctx.beginPath(); ctx.arc(teachX - 14, teachY - 12, 7, Math.PI, 0); ctx.stroke();
-    ctx.beginPath(); ctx.arc(teachX + 14, teachY - 12, 7, Math.PI, 0); ctx.stroke();
-
-    ctx.fillStyle = '#78281f';
-    ctx.beginPath();
-    ctx.arc(teachX, teachY + 8, 14, 0, Math.PI);
-    ctx.closePath(); ctx.fill(); ctx.stroke();
-
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(teachX - 10, teachY + 8, 20, 4);
-    ctx.strokeRect(teachX - 10, teachY + 8, 20, 4);
-
-    const score = Math.round((100 - state.chaosMeter) * 100 + 1000);
-    ctx.fillStyle = '#f1c40f';
-    ctx.font = 'bold 24px "Comic Sans MS", Arial, sans-serif';
-    ctx.fillText("FINAL SCORE: " + score + " PTS", 400, 360);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 15px "Comic Sans MS", Arial, sans-serif';
-    ctx.fillText("Excellent work! You kept the kids focused and avoided total disaster.", 400, 410);
-
-    const isHover = (state.mouseX >= 300 && state.mouseX <= 500 && state.mouseY >= 460 && state.mouseY <= 520);
-    const offset = isHover ? 2 : 0;
-
-    ctx.fillStyle = '#1a252f';
-    drawRoundedRect(300, 460 + 5, 200, 60, 15, '#1a252f');
-    drawRoundedRect(300, 460 + offset, 200, 60, 15, isHover ? '#9b59b6' : '#8e44ad', '#ffffff', 3);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 20px "Comic Sans MS", Arial, sans-serif';
-    ctx.fillText("PLAY AGAIN", 400, 498 + offset);
-
-    ctx.textAlign = 'left';
-}
-
-// --- GAME STATE UPDATE & MATH LOOP ---
-
-function updateGame(dt) {
-    if (state.gameState !== 'PLAYING') return;
-
-    state.classTimer -= dt;
-    if (state.classTimer <= 0) {
-        state.classTimer = 0;
-        if (state.chaosMeter < 100.0) {
-            state.gameState = 'VICTORY';
-        }
-    }
-
-    // Adapt gameplay parameters dynamic variables on selected difficulty level
-    let aiInterval = 2.5;
-    let aiTriggerChance = 0.40;
-    let chaosMultiplier = 1.0;
-
-    if (state.difficulty === 'EASY') {
-        aiInterval = 3.5;
-        aiTriggerChance = 0.25;
-        chaosMultiplier = 0.6;
-    } else if (state.difficulty === 'HARD') {
-        aiInterval = 1.8;
-        aiTriggerChance = 0.55;
-        chaosMultiplier = 1.45;
-    }
-
-    let frameChaosSum = 0.0;
-    state.students.forEach(s => {
-        if (s.state === 'TALKING') frameChaosSum += 1.5;
-        else if (s.state === 'WANDERING') frameChaosSum += 2.0;
-        else if (s.state === 'THROWING') frameChaosSum += 3.0;
-        else if (s.state === 'FIGHTING') frameChaosSum += 5.0;
-    });
-    state.chaosMeter += frameChaosSum * chaosMultiplier * dt;
-    state.chaosMeter = Math.max(0.0, Math.min(100.0, state.chaosMeter));
-
-    if (state.chaosMeter > 75.0) {
-        state.screenShake = Math.max(state.screenShake, 2.5);
-    }
-
-    if (state.chaosMeter >= 100.0) {
-        state.gameState = 'GAME_OVER';
-    }
-
-    state.students.forEach(s => {
-        s.blinkTimer -= dt;
-        if (s.blinkTimer <= 0) {
-            if (!s.isBlinking) {
-                s.isBlinking = true;
-                s.blinkTimer = 0.15;
-            } else {
-                s.isBlinking = false;
-                s.blinkTimer = Math.random() * 3 + 2;
-            }
-        }
-    });
-
-    state.aiTimer += dt;
-    if (state.aiTimer >= aiInterval) {
-        state.aiTimer = 0.0;
-        
-        state.students.forEach(s => {
-            if (s.state === 'ATTENTIVE') {
-                if (Math.random() < aiTriggerChance) {
-                    const roll = Math.random();
-                    if (roll < 0.40) {
-                        s.state = 'TALKING';
-                        s.expressionState = 'EXCITED';
-                        s.talkingText = TALKING_COMMENTS[Math.floor(Math.random() * TALKING_COMMENTS.length)];
-                    } else if (roll < 0.70) {
-                        s.state = 'WANDERING';
-                        s.expressionState = 'SNEAKY';
-                        s.targetX = 80 + Math.random() * 640;
-                        s.targetY = 180 + Math.random() * 260;
-                    } else if (roll < 0.90) {
-                        s.state = 'THROWING';
-                        s.expressionState = 'ANGRY';
-                        
-                        let targetId = (s.id + 1) % 10;
-                        const targetStudent = state.students[targetId];
-
-                        state.projectiles.push({
-                            startX: s.currentX,
-                            startY: s.currentY - 10,
-                            currentX: s.currentX,
-                            currentY: s.currentY - 10,
-                            targetX: targetStudent.currentX,
-                            targetY: targetStudent.currentY - 10,
-                            speed: 250.0
-                        });
-                    } else {
-                        let closest = null;
-                        let minDist = Infinity;
-                        state.students.forEach(other => {
-                            if (other.id !== s.id && other.state !== 'FIGHTING') {
-                                const dx = other.currentX - s.currentX;
-                                const dy = other.currentY - s.currentY;
-                                const dist = Math.sqrt(dx*dx + dy*dy);
-                                if (dist < minDist) {
-                                    minDist = dist;
-                                    closest = other;
-                                }
-                            }
-                        });
-
-                        if (closest) {
-                            s.state = 'FIGHTING';
-                            s.expressionState = 'AGGRESSIVE';
-                            s.targetStudentId = closest.id;
-
-                            closest.state = 'FIGHTING';
-                            closest.expressionState = 'AGGRESSIVE';
-                            closest.targetStudentId = s.id;
-
-                            const midX = (s.currentX + closest.currentX) / 2;
-                            const midY = (s.currentY + closest.currentY) / 2;
-                            s.targetX = midX;
-                            s.targetY = midY;
-                            closest.targetX = midX;
-                            closest.targetY = midY;
-
-                            state.screenShake = Math.max(state.screenShake, 5);
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    state.students.forEach(s => {
-        s.stateTimer += dt;
-
-        if (s.state === 'WANDERING') {
-            const dx = s.targetX - s.currentX;
-            const dy = s.targetY - s.currentY;
-            const dist = Math.sqrt(dx*dx + dy*dy);
-
-            if (dist > 5.0) {
-                const speed = 110.0;
-                s.currentX += (dx / dist) * speed * dt;
-                s.currentY += (dy / dist) * speed * dt;
-            } else {
-                if (s.targetX === s.homeX && s.targetY === s.homeY) {
-                    s.state = 'ATTENTIVE';
-                    s.expressionState = 'BORED';
-                    s.talkingText = '';
-                } else {
-                    s.targetX = 80 + Math.random() * 640;
-                    s.targetY = 180 + Math.random() * 260;
-                }
-            }
-        }
-
-        if (s.state === 'FIGHTING') {
-            const partner = state.students[s.targetStudentId];
-            if (partner) {
-                const midX = (s.homeX + partner.homeX) / 2;
-                const midY = (s.homeY + partner.homeY) / 2;
-                const dx = midX - s.currentX;
-                const dy = midY - s.currentY;
-                const dist = Math.sqrt(dx*dx + dy*dy);
-
-                if (dist > 18.0) {
-                    const speed = 140.0;
-                    s.currentX += (dx / dist) * speed * dt;
-                    s.currentY += (dy / dist) * speed * dt;
-                } else {
-                    s.currentX = midX + (Math.random() - 0.5) * 8;
-                    s.currentY = midY + (Math.random() - 0.5) * 8;
-                }
-            }
-        }
-    });
-
-    for (let i = state.projectiles.length - 1; i >= 0; i--) {
-        const p = state.projectiles[i];
-        const dx = p.targetX - p.currentX;
-        const dy = p.targetY - p.currentY;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-
-        if (dist > 6.0) {
-            p.currentX += (dx / dist) * p.speed * dt;
-            p.currentY += (dy / dist) * p.speed * dt;
-        } else {
-            state.chaosMeter = Math.min(100.0, state.chaosMeter + 1.5);
-            state.screenShake = Math.max(state.screenShake, 1.5);
-            state.projectiles.splice(i, 1);
-        }
-    }
-
-    for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
-        const ft = state.floatingTexts[i];
-        ft.y -= 25 * dt;
-        ft.life -= dt * 1.5;
-        if (ft.life <= 0) {
-            state.floatingTexts.splice(i, 1);
-        }
-    }
-}
-
-function render() {
-    ctx.clearRect(0, 0, 800, 600);
-
-    ctx.save();
-    if (state.screenShake > 0) {
-        const shakeX = (Math.random() - 0.5) * state.screenShake;
-        const shakeY = (Math.random() - 0.5) * state.screenShake;
-        ctx.translate(shakeX, shakeY);
-        state.screenShake *= 0.9;
-        if (state.screenShake < 0.1) state.screenShake = 0.0;
-    }
-
-    if (state.gameState === 'MAIN_MENU') {
-        drawMainMenu();
-    } else if (state.gameState === 'PLAYING') {
-        drawBackground();
-        drawChairs();
-
-        state.students.forEach(s => {
-            if (s.state === 'ATTENTIVE' || s.state === 'TALKING' || s.state === 'THROWING') {
-                drawStudent(s);
-            }
-        });
-
-        drawDeskSlabs();
-
-        state.students.forEach(s => {
-            if (s.state === 'WANDERING') {
-                drawStudent(s);
-            }
-        });
-
-        const handledFighters = new Set();
-        state.students.forEach(s => {
-            if (s.state === 'FIGHTING' && !handledFighters.has(s.id)) {
-                const partner = state.students[s.targetStudentId];
-                if (partner) {
-                    drawFightCloud(s, partner);
-                    handledFighters.add(s.id);
-                    handledFighters.add(partner.id);
-                }
-            }
-        });
-
-        state.students.forEach(s => {
-            if (s.state === 'TALKING' && s.talkingText) {
-                drawSpeechBubble(s);
-            }
-        });
-
-        state.projectiles.forEach(p => {
-            ctx.fillStyle = '#ffffff';
-            ctx.strokeStyle = '#7f8c8d';
-            ctx.lineWidth = 1.5;
-            drawWobblyCircle(p.currentX, p.currentY, 6, '#ffffff', '#7f8c8d', 1.5);
-            
-            ctx.strokeStyle = 'rgba(127, 140, 141, 0.4)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(p.currentX - 10, p.currentY);
-            ctx.lineTo(p.currentX, p.currentY);
-            ctx.stroke();
-        });
-
-        if (state.selectedStudentId !== -1) {
-            const s = state.students[state.selectedStudentId];
-            drawRadialMenu(s);
-        }
-
-        state.floatingTexts.forEach(ft => {
-            ctx.fillStyle = ft.color;
-            ctx.font = 'bold 14px "Comic Sans MS", Arial, sans-serif';
-            ctx.shadowColor = 'black';
-            ctx.shadowBlur = 4;
-            ctx.fillText(ft.text, ft.x, ft.y);
-            ctx.shadowBlur = 0;
-        });
-
-        drawHUD();
-        drawFooter();
-
-    } else if (state.gameState === 'GAME_OVER') {
-        drawGameOver();
-    } else if (state.gameState === 'VICTORY') {
-        drawVictory();
-    }
-
+    ctx.strokeStyle = '#c0392b';
+    ctx.fillText("CHAOS!", 0, 60);
+    ctx.strokeText("CHAOS!", 0, 60);
     ctx.restore();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '15px "Comic Sans MS", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText("Click misbehaving students and pick the correct intervention before chaos hits 100%!", canvas.width / 2, 280);
+
+    ctx.font = '12px "Comic Sans MS", Arial, sans-serif';
+    ctx.fillStyle = '#1abc9c';
+    ctx.fillText("🗣️ QUIET for Talking • 🪑 SIT DOWN for Standing • 🎒 CONFISCATE for Distracted • ↔️ SEPARATE for Both", canvas.width / 2, 305);
+
+    // Difficulty Select Box
+    ctx.fillStyle = '#2c3e50';
+    drawRoundedRect(160, 335, 480, 70, 10, '#2c3e50', '#7f8c8d', 2);
+
+    ctx.fillStyle = '#ecf0f1';
+    ctx.font = 'bold 12px "Comic Sans MS", Arial, sans-serif';
+    ctx.fillText("CHOOSE DIFFICULTY:", canvas.width / 2, 348);
+
+    const options = [
+        { id: 'EASY', label: 'EASY 🍼', x: 180, color: '#2ecc71', hoverColor: '#27ae60' },
+        { id: 'MEDIUM', label: 'MEDIUM 👦', x: 340, color: '#f1c40f', hoverColor: '#f39c12' },
+        { id: 'HARD', label: 'HARD 🔥', x: 500, color: '#e74c3c', hoverColor: '#c0392b' }
+    ];
+
+    options.forEach(o => {
+        const isSelected = state.difficulty === o.id;
+        const hovered = state.mouseX >= o.x && state.mouseX <= o.x + 120 && state.mouseY >= 360 && state.mouseY <= 395;
+
+        ctx.save();
+        if (isSelected) {
+            ctx.shadowColor = o.color;
+            ctx.shadowBlur = 12;
+            drawRoundedRect(o.x - 2, 358, 124, 39, 6, '#ffffff');
+        }
+        drawRoundedRect(o.x, 360, 120, 35, 5, hovered ? o.hoverColor : o.color, '#ffffff', 2);
+        ctx.restore();
+
+        ctx.fillStyle = isSelected ? '#2c3e50' : '#ffffff';
+        ctx.font = 'bold 13px "Comic Sans MS", Arial, sans-serif';
+        ctx.fillText(o.label, o.x + 60, 378);
+    });
+
+    const triggerHovered = state.mouseX >= 300 && state.mouseX <= 500 && state.mouseY >= 440 && state.mouseY <= 500;
+    drawRoundedRect(300, 440, 200, 60, 12, triggerHovered ? '#16a085' : '#1abc9c', '#ffffff', 3.5);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px "Comic Sans MS", Arial, sans-serif';
+    ctx.fillText("START CLASS", 400, 474);
 }
 
-// --- USER INTERACTION EVENTS ---
+function drawGameOverScreen() {
+    ctx.fillStyle = 'rgba(192, 57, 43, 0.88)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const wobble = Math.sin(Date.now() * 0.005) * 8;
+    ctx.font = 'bold 46px "Comic Sans MS", Arial, sans-serif';
+    ctx.textAlign = 'center';
+
+    ctx.fillStyle = '#000000';
+    ctx.fillText("CLASSROOM CHAOS! 🤯", canvas.width / 2 + 3, 200 + wobble + 3);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText("CLASSROOM CHAOS! 🤯", canvas.width / 2, 200 + wobble);
+
+    ctx.font = '16px "Comic Sans MS", Arial, sans-serif';
+    ctx.fillStyle = '#f8f9f9';
+    ctx.fillText("The noise got out of hand. The Principal suspended you!", canvas.width / 2, 270);
+
+    ctx.font = '14px "Comic Sans MS", Arial, sans-serif';
+    ctx.fillStyle = '#f1c40f';
+    ctx.fillText(`Difficulty: ${state.difficulty}`, canvas.width / 2, 310);
+
+    const retryHover = state.mouseX >= 300 && state.mouseX <= 500 && state.mouseY >= 450 && state.mouseY <= 500;
+    drawRoundedRect(300, 450, 200, 50, 10, retryHover ? '#7f8c8d' : '#95a5a6', '#ffffff', 3.5);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 16px "Comic Sans MS", Arial, sans-serif';
+    ctx.fillText("MAIN MENU", 400, 480);
+}
+
+function drawVictoryScreen() {
+    ctx.fillStyle = 'rgba(39, 174, 96, 0.90)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Decorative sparkles
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    for (let i = 0; i < 8; i++) {
+        const sx = canvas.width / 2 + Math.cos(Date.now() * 0.001 + i) * 190;
+        const sy = 240 + Math.sin(Date.now() * 0.0012 + i * 1.5) * 75;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 6 + i, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    const slide = Math.sin(Date.now() * 0.004) * 6;
+    ctx.font = 'bold 44px "Comic Sans MS", Arial, sans-serif';
+    ctx.textAlign = 'center';
+
+    ctx.fillStyle = '#114a22';
+    ctx.fillText("CLASS DISMISSED! 🔔🎉", canvas.width / 2 + 3, 180 + slide + 3);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText("CLASS DISMISSED! 🔔🎉", canvas.width / 2, 180 + slide);
+
+    ctx.font = '16px "Comic Sans MS", Arial, sans-serif';
+    ctx.fillStyle = '#f4f6f7';
+    ctx.fillText("Awesome job! You kept the students under control until the recess bell!", canvas.width / 2, 235);
+
+    // Score Calculations
+    const baseVal = 2500;
+    const silentBonus = Math.floor((1.0 - state.chaosMeter) * 2500);
+    const bonusMulti = state.difficulty === 'HARD' ? 2.0 : state.difficulty === 'MEDIUM' ? 1.0 : 0.5;
+    const finalVal = Math.floor((baseVal + silentBonus) * bonusMulti);
+
+    drawRoundedRect(250, 270, 300, 145, 10, 'rgba(0,0,0,0.25)', '#ffffff', 2);
+
+    ctx.fillStyle = '#f1c40f';
+    ctx.font = 'bold 13px "Comic Sans MS", Arial, sans-serif';
+    ctx.fillText("TEACHING PERFORMANCE CARD", 400, 295);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '12px "Comic Sans MS", Arial, sans-serif';
+    ctx.fillText(`Surviving Base Value: +${baseVal}`, 400, 320);
+    ctx.fillText(`Quietness Bonus (${Math.round((1.0 - state.chaosMeter)*100)}%): +${silentBonus}`, 400, 340);
+    ctx.fillText(`Difficulty Multiplier: x${bonusMulti}`, 400, 360);
+
+    ctx.font = 'bold 18px "Comic Sans MS", Arial, sans-serif';
+    ctx.fillStyle = '#f1c40f';
+    ctx.fillText(`TOTAL SCORE: ${finalVal} PTS`, 400, 393);
+
+    const restartHover = state.mouseX >= 300 && state.mouseX <= 500 && state.mouseY >= 450 && state.mouseY <= 500;
+    drawRoundedRect(300, 450, 200, 50, 10, restartHover ? '#16a085' : '#1abc9c', '#ffffff', 3.5);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 16px "Comic Sans MS", Arial, sans-serif';
+    ctx.fillText("PLAY AGAIN", 400, 480);
+}
+
+// --- CURSOR / POSITION GETTERS ---
+
+function getMousePos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+    };
+}
+
+// --- CLICK INTERACT HANDLERS ---
 
 function handleCanvasClick(e) {
-    const rect = canvas.getBoundingClientRect();
-    const mx = (e.clientX - rect.left) * (800 / rect.width);
-    const my = (e.clientY - rect.top) * (600 / rect.height);
+    initAudio();
+
+    const pos = getMousePos(e);
+    const mx = pos.x;
+    const my = pos.y;
 
     if (state.gameState === 'MAIN_MENU') {
-        // Handle Difficulty Selector Button Clicks
-        const diffY = 401;
-        const diffH = 26;
-        if (my >= diffY && my <= diffY + diffH) {
-            if (mx >= 210 && mx <= 310) {
+        playSound('click');
+
+        // Check Difficulty selections
+        if (my >= 350 && my <= 395) {
+            if (mx >= 180 && mx <= 300) {
                 state.difficulty = 'EASY';
-            } else if (mx >= 330 && mx <= 470) {
+            } else if (mx >= 340 && mx <= 460) {
                 state.difficulty = 'MEDIUM';
-            } else if (mx >= 490 && mx <= 590) {
+            } else if (mx >= 500 && mx <= 620) {
                 state.difficulty = 'HARD';
             }
         }
 
-        // Clicked START GAME
-        if (mx >= 300 && mx <= 500 && my >= 445 && my <= 505) {
+        // Start button box
+        if (mx >= 300 && mx <= 500 && my >= 440 && my <= 500) {
             resetGame();
             state.gameState = 'PLAYING';
+            playSound('bell');
         }
-    } else if (state.gameState === 'GAME_OVER') {
-        if (mx >= 320 && mx <= 480 && my >= 440 && my <= 500) {
-            resetGame();
-            state.gameState = 'PLAYING';
+    } 
+    else if (state.gameState === 'GAME_OVER' || state.gameState === 'VICTORY') {
+        playSound('click');
+        if (mx >= 300 && mx <= 500 && my >= 450 && my <= 500) {
+            state.gameState = 'MAIN_MENU';
         }
-    } else if (state.gameState === 'VICTORY') {
-        if (mx >= 300 && mx <= 500 && my >= 460 && my <= 520) {
-            resetGame();
-            state.gameState = 'PLAYING';
-        }
-    } else if (state.gameState === 'PLAYING') {
-        let clickedOnRadialButton = false;
-
+    } 
+    else if (state.gameState === 'PLAYING') {
         if (state.selectedStudentId !== -1) {
-            const s = state.students[state.selectedStudentId];
-            
-            for (let i = 0; i < RADIAL_ACTIONS.length; i++) {
-                const act = RADIAL_ACTIONS[i];
-                const rx = s.currentX + Math.cos(act.angle) * RADIAL_RADIUS;
-                const ry = s.currentY + Math.sin(act.angle) * RADIAL_RADIUS;
-                const dx = mx - rx;
-                const dy = my - ry;
-                const dist = Math.sqrt(dx*dx + dy*dy);
+            const student = state.students.find(s => s.id === state.selectedStudentId);
+            if (student) {
+                const rx = student.currentX;
+                const ry = student.currentY - 15;
 
-                if (dist <= RADIAL_BTN_SIZE + 4) {
-                    clickedOnRadialButton = true;
-                    let resolved = false;
-
-                    if (s.state === 'TALKING' && act.id === 'QUIET') {
-                        s.state = 'ATTENTIVE';
-                        s.expressionState = 'BORED';
-                        s.talkingText = '';
-                        state.chaosMeter = Math.max(0.0, state.chaosMeter - 5.0);
-                        spawnFloatingText(s.currentX, s.currentY - 30, "SHH! -5% Chaos", '#2ecc71');
-                        resolved = true;
-                    } 
-                    else if (s.state === 'WANDERING' && act.id === 'SIT') {
-                        s.targetX = s.homeX;
-                        s.targetY = s.homeY;
-                        spawnFloatingText(s.currentX, s.currentY - 30, "GO BACK! -5% Chaos", '#2ecc71');
-                        state.chaosMeter = Math.max(0.0, state.chaosMeter - 5.0);
-                        resolved = true;
-                    } 
-                    else if (s.state === 'THROWING' && act.id === 'CONFISCATE') {
-                        s.state = 'ATTENTIVE';
-                        s.expressionState = 'BORED';
-                        spawnFloatingText(s.currentX, s.currentY - 30, "CONFISCATED! -5% Chaos", '#2ecc71');
-                        state.chaosMeter = Math.max(0.0, state.chaosMeter - 5.0);
-                        resolved = true;
-                    } 
-                    else if (s.state === 'FIGHTING' && act.id === 'SEPARATE') {
-                        const partner = state.students[s.targetStudentId];
-                        s.state = 'WANDERING';
-                        s.targetX = s.homeX;
-                        s.targetY = s.homeY;
-                        s.expressionState = 'SNEAKY';
-                        s.targetStudentId = -1;
-
-                        if (partner) {
-                            partner.state = 'WANDERING';
-                            partner.targetX = partner.homeX;
-                            partner.targetY = partner.homeY;
-                            partner.expressionState = 'SNEAKY';
-                            partner.targetStudentId = -1;
-                        }
-
-                        spawnFloatingText(s.currentX, s.currentY - 30, "SEPARATED! -10% Chaos", '#2ecc71');
-                        state.chaosMeter = Math.max(0.0, state.chaosMeter - 10.0);
-                        resolved = true;
+                let actionClicked = null;
+                for (let action of RADIAL_ACTIONS) {
+                    const btnX = rx + Math.cos(action.angle) * RADIAL_RADIUS;
+                    const btnY = ry + Math.sin(action.angle) * RADIAL_RADIUS;
+                    const dx = mx - btnX;
+                    const dy = my - btnY;
+                    if (Math.sqrt(dx * dx + dy * dy) < RADIAL_BTN_SIZE) {
+                        actionClicked = action;
+                        break;
                     }
+                }
 
-                    if (resolved) {
-                        state.selectedStudentId = -1;
-                        state.hoveredRadialActionId = '';
-                        state.screenShake = Math.max(state.screenShake, 3);
-                    } else {
-                        spawnFloatingText(rx, ry - 15, "WRONG!", '#e74c3c');
-                        state.screenShake = Math.max(state.screenShake, 4);
-                    }
-                    break;
+                if (actionClicked) {
+                    handleRadialAction(student, actionClicked);
+                    state.selectedStudentId = -1;
+                    return;
                 }
             }
-        }
-
-        if (!clickedOnRadialButton) {
-            let studentClicked = false;
-            
-            for (let i = 0; i < state.students.length; i++) {
-                const s = state.students[i];
-                const dx = mx - s.currentX;
-                const dy = my - s.currentY;
-                const dist = Math.sqrt(dx*dx + dy*dy);
-
-                if (dist <= 28) {
-                    state.selectedStudentId = s.id;
-                    studentClicked = true;
-                    state.hoveredRadialActionId = '';
+            state.selectedStudentId = -1;
+            playSound('click');
+        } else {
+            let hitStudent = null;
+            for (let student of state.students) {
+                const dx = mx - student.currentX;
+                const dy = my - student.currentY;
+                if (Math.sqrt(dx * dx + dy * dy) < 28) {
+                    hitStudent = student;
                     break;
                 }
             }
 
-            if (!studentClicked && my < 500) {
-                state.selectedStudentId = -1;
+            if (hitStudent) {
+                state.selectedStudentId = hitStudent.id;
+                playSound('click');
             }
         }
     }
 }
 
 function handleCanvasMouseMove(e) {
-    const rect = canvas.getBoundingClientRect();
-    state.mouseX = (e.clientX - rect.left) * (800 / rect.width);
-    state.mouseY = (e.clientY - rect.top) * (600 / rect.height);
+    const pos = getMousePos(e);
+    state.mouseX = pos.x;
+    state.mouseY = pos.y;
+}
 
-    let hoverActive = false;
-    state.hoveredRadialActionId = '';
+// --- INTERVENTION LOGIC ---
 
-    if (state.gameState === 'PLAYING') {
-        if (state.selectedStudentId !== -1) {
-            const s = state.students[state.selectedStudentId];
-            for (let i = 0; i < RADIAL_ACTIONS.length; i++) {
-                const act = RADIAL_ACTIONS[i];
-                const rx = s.currentX + Math.cos(act.angle) * RADIAL_RADIUS;
-                const ry = s.currentY + Math.sin(act.angle) * RADIAL_RADIUS;
-                const dx = state.mouseX - rx;
-                const dy = state.mouseY - ry;
-                const dist = Math.sqrt(dx*dx + dy*dy);
+function handleRadialAction(student, action) {
+    let success = false;
+    let text = '';
+    let redChance = 0.12;
 
-                if (dist <= RADIAL_BTN_SIZE + 4) {
-                    state.hoveredRadialActionId = act.id;
-                    hoverActive = true;
-                    break;
+    if (action.id === 'QUIET') {
+        if (student.state === 'TALKING') {
+            success = true;
+            text = 'Quiet! 🤫';
+            redChance = 0.12;
+            student.state = 'QUIETED';
+            student.stateTimer = 9.0; // calm for 9s
+            student.expressionState = 'HAPPY';
+            student.talkingText = '';
+        } else {
+            text = 'Not talking! 🤷';
+        }
+    } 
+    else if (action.id === 'SIT') {
+        if (student.state === 'STANDING') {
+            success = true;
+            text = 'Seated! 🪑';
+            redChance = 0.16;
+            student.state = 'QUIETED';
+            student.stateTimer = 7.0;
+            student.expressionState = 'HAPPY';
+            student.targetX = student.homeX;
+            student.targetY = student.homeY;
+        } else {
+            text = 'Already sitting! 🤨';
+        }
+    } 
+    else if (action.id === 'CONFISCATE') {
+        if (student.state === 'DISTRACTED') {
+            success = true;
+            text = 'No phones! 🎒';
+            redChance = 0.18;
+            student.state = 'QUIETED';
+            student.stateTimer = 6.0;
+            student.expressionState = 'BORED';
+        } else {
+            text = 'Nothing to take! 🙅';
+        }
+    } 
+    else if (action.id === 'SEPARATE') {
+        if (student.state === 'STANDING' || student.state === 'TALKING') {
+            success = true;
+            text = 'Separated! ↔️';
+            redChance = 0.10;
+            student.state = 'QUIETED';
+            student.stateTimer = 11.0;
+            student.expressionState = 'BORED';
+            student.currentX = student.homeX;
+            student.currentY = student.homeY;
+            student.talkingText = '';
+        } else {
+            text = 'No need! 😒';
+        }
+    }
+
+    if (success) {
+        playSound('success');
+        state.chaosMeter = Math.max(0.0, state.chaosMeter - redChance);
+        spawnFloatingText(student.currentX, student.currentY - 32, text, '#2ecc71');
+        spawnFloatingText(student.currentX, student.currentY - 16, `-${Math.round(redChance * 100)}% Chaos`, '#2ecc71');
+    } else {
+        playSound('fail');
+        state.chaosMeter = Math.min(1.0, state.chaosMeter + 0.05);
+        spawnFloatingText(student.currentX, student.currentY - 32, text, '#e74c3c');
+        state.screenShake = 3.5;
+    }
+}
+
+// --- STATE LOOPS ---
+
+function update(dt) {
+    if (state.gameState !== 'PLAYING') return;
+
+    if (state.screenShake > 0) {
+        state.screenShake -= dt * 9;
+        if (state.screenShake < 0) state.screenShake = 0;
+    }
+
+    state.classTimer -= dt;
+    if (state.classTimer <= 0) {
+        state.classTimer = 0;
+        state.gameState = 'VICTORY';
+        playSound('bell');
+        return;
+    }
+
+    state.aiTimer += dt;
+    let threshold = 1.6;
+    let speedMulti = 1.0;
+
+    if (state.difficulty === 'EASY') {
+        threshold = 2.4;
+        speedMulti = 0.6;
+    } else if (state.difficulty === 'HARD') {
+        threshold = 0.8;
+        speedMulti = 1.6;
+    }
+
+    if (state.aiTimer >= threshold) {
+        state.aiTimer = 0.0;
+        const candidates = state.students.filter(s => s.state === 'ATTENTIVE');
+        if (candidates.length > 0) {
+            const chosen = candidates[Math.floor(Math.random() * candidates.length)];
+            const act = Math.random();
+
+            if (act < 0.35) {
+                // Talk
+                chosen.state = 'TALKING';
+                chosen.stateTimer = Math.random() * 4.5 + 4;
+                chosen.talkingText = TALKING_COMMENTS[Math.floor(Math.random() * TALKING_COMMENTS.length)];
+                chosen.expressionState = 'ANGRY';
+            } else if (act < 0.65) {
+                // Wander
+                chosen.state = 'STANDING';
+                chosen.stateTimer = Math.random() * 5 + 5;
+                chosen.targetX = chosen.homeX + (Math.random() * 120 - 60);
+                chosen.targetY = chosen.homeY + (Math.random() * 80 - 40);
+                chosen.targetX = Math.max(90, Math.min(710, chosen.targetX));
+                chosen.targetY = Math.max(180, Math.min(490, chosen.targetY));
+                chosen.expressionState = 'HAPPY';
+            } else if (act < 0.85) {
+                // Play on Phone
+                chosen.state = 'DISTRACTED';
+                chosen.stateTimer = Math.random() * 6 + 4;
+                chosen.expressionState = 'PHONE';
+            } else {
+                // Throw projectile windup
+                const victims = state.students.filter(s => s.id !== chosen.id);
+                if (victims.length > 0) {
+                    chosen.state = 'THROWING';
+                    chosen.stateTimer = 1.5; // windup delay
+                    chosen.targetStudentId = victims[Math.floor(Math.random() * victims.length)].id;
+                    chosen.expressionState = 'ANGRY';
+                }
+            }
+        }
+    }
+
+    state.students.forEach(student => {
+        student.blinkTimer -= dt;
+        if (student.blinkTimer <= 0) {
+            if (student.isBlinking) {
+                student.isBlinking = false;
+                student.blinkTimer = Math.random() * 3.5 + 1.5;
+            } else {
+                student.isBlinking = true;
+                student.blinkTimer = 0.15;
+            }
+        }
+
+        if (student.stateTimer > 0) {
+            student.stateTimer -= dt;
+            if (student.stateTimer <= 0) {
+                if (student.state === 'THROWING') {
+                    const victim = state.students.find(s => s.id === student.targetStudentId);
+                    if (victim) {
+                        playSound('throw');
+                        const dx = victim.currentX - student.currentX;
+                        const dy = victim.currentY - student.currentY;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        const vScale = 6.2;
+                        state.projectiles.push({
+                            x: student.currentX,
+                            y: student.currentY - 15,
+                            vx: (dx / dist) * vScale,
+                            vy: (dy / dist) * vScale,
+                            targetX: victim.currentX,
+                            targetY: victim.currentY - 15,
+                            targetId: victim.id,
+                            type: Math.random() > 0.5 ? 'PAPER_AIRPLANE' : 'SPITBALL',
+                            angle: Math.atan2(dy, dx)
+                        });
+                    }
+                    student.state = 'ATTENTIVE';
+                    student.expressionState = 'BORED';
+                } else {
+                    student.state = 'ATTENTIVE';
+                    student.expressionState = 'BORED';
                 }
             }
         }
 
-        if (state.hoveredRadialActionId === '') {
-            state.students.forEach(s => {
-                const dx = state.mouseX - s.currentX;
-                const dy = state.mouseY - s.currentY;
-                if (Math.sqrt(dx*dx + dy*dy) <= 25) {
-                    hoverActive = true;
-                }
-            });
+        // Student physics movement interpolation
+        if (student.state === 'STANDING') {
+            const dx = student.targetX - student.currentX;
+            const dy = student.targetY - student.currentY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 3) {
+                student.currentX += (dx / dist) * 1.6;
+                student.currentY += (dy / dist) * 1.6;
+            }
+        } else if (student.state === 'ATTENTIVE' || student.state === 'QUIETED') {
+            const dx = student.homeX - student.currentX;
+            const dy = student.homeY - student.currentY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist > 3) {
+                student.currentX += (dx / dist) * 2.6;
+                student.currentY += (dy / dist) * 2.6;
+            } else {
+                student.currentX = student.homeX;
+                student.currentY = student.homeY;
+            }
         }
-    } else if (state.gameState === 'MAIN_MENU') {
-        const isOverStart = (state.mouseX >= 300 && state.mouseX <= 500 && state.mouseY >= 445 && state.mouseY <= 505);
-        const isOverDifficulty = (state.mouseY >= 401 && state.mouseY <= 427 && state.mouseX >= 210 && state.mouseX <= 590);
-        if (isOverStart || isOverDifficulty) hoverActive = true;
-    } else if (state.gameState === 'GAME_OVER') {
-        if (state.mouseX >= 320 && state.mouseX <= 480 && state.mouseY >= 440 && state.mouseY <= 500) hoverActive = true;
-    } else if (state.gameState === 'VICTORY') {
-        if (state.mouseX >= 300 && state.mouseX <= 500 && state.mouseY >= 460 && state.mouseY <= 520) hoverActive = true;
+
+        // Chaos rate accumulation
+        if (student.state === 'TALKING') {
+            state.chaosMeter += 0.00045 * speedMulti;
+        } else if (student.state === 'STANDING') {
+            state.chaosMeter += 0.0006 * speedMulti;
+        } else if (student.state === 'DISTRACTED') {
+            state.chaosMeter += 0.0005 * speedMulti;
+        } else if (student.state === 'THROWING') {
+            state.chaosMeter += 0.0003 * speedMulti;
+        }
+    });
+
+    if (state.chaosMeter > 1.0) {
+        state.chaosMeter = 1.0;
+        state.gameState = 'GAME_OVER';
+        playSound('fail');
+        return;
     }
 
-    canvas.style.cursor = hoverActive ? 'pointer' : 'default';
+    // Update Projectiles
+    for (let i = 0; i < state.projectiles.length; i++) {
+        const p = state.projectiles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+
+        const dx = p.targetX - p.x;
+        const dy = p.targetY - p.y;
+        if (Math.sqrt(dx * dx + dy * dy) < 8) {
+            playSound('splat');
+            spawnFloatingText(p.targetX, p.targetY - 14, "SPLAT!", "#e74c3c");
+            state.screenShake = 4.0;
+
+            const victim = state.students.find(s => s.id === p.targetId);
+            if (victim && (victim.state === 'ATTENTIVE' || victim.state === 'QUIETED')) {
+                victim.state = 'DISTRACTED';
+                victim.stateTimer = 4.0;
+                victim.expressionState = 'ANGRY';
+            }
+
+            state.chaosMeter = Math.min(1.0, state.chaosMeter + 0.035 * speedMulti);
+            state.projectiles.splice(i, 1);
+            i--;
+        }
+    }
+
+    // Update Floating text lifespan
+    for (let i = 0; i < state.floatingTexts.length; i++) {
+        const textObj = state.floatingTexts[i];
+        textObj.y -= 0.7;
+        textObj.life -= dt;
+        if (textObj.life <= 0) {
+            state.floatingTexts.splice(i, 1);
+            i--;
+        }
+    }
 }
 
-canvas.addEventListener('mousedown', handleCanvasClick);
-canvas.addEventListener('mousemove', handleCanvasMouseMove);
+function render() {
+    ctx.save();
 
-// --- MAIN TICK TIMESTEP INTERFACE ---
-let lastTime = performance.now();
+    if (state.screenShake > 0) {
+        const dx = (Math.random() - 0.5) * state.screenShake * 2;
+        const dy = (Math.random() - 0.5) * state.screenShake * 2;
+        ctx.translate(dx, dy);
+    }
 
-function gameLoop(currentTime) {
-    let dt = (currentTime - lastTime) / 1000.0;
-    
-    if (dt > 0.1) dt = 0.1;
-    
-    lastTime = currentTime;
+    // 1. Draw tile classroom flooring
+    ctx.fillStyle = '#f5f5dc';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    updateGame(dt);
+    ctx.strokeStyle = '#e2dfc6';
+    ctx.lineWidth = 1.5;
+    for (let x = 0; x < canvas.width; x += 60) {
+        ctx.beginPath(); ctx.moveTo(x, 120); ctx.lineTo(x, canvas.height); ctx.stroke();
+    }
+    for (let y = 120; y < canvas.height; y += 45) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+    }
+
+    // 2. Front blackboard wall
+    ctx.fillStyle = '#2c3e50';
+    ctx.fillRect(0, 0, canvas.width, 120);
+    ctx.fillStyle = '#1a252f';
+    ctx.fillRect(0, 114, canvas.width, 6);
+
+    // Chalkboard frame
+    drawRoundedRect(90, 15, 620, 85, 4, '#1b4f72', '#8a4c2d', 6);
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+    ctx.font = 'bold 15px "Comic Sans MS", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText("MATH CLASS: MULTIPLY CHAOS!", 400, 42);
+    ctx.font = '12px "Comic Sans MS", Arial, sans-serif';
+    ctx.fillText("2 + 2 = 🐟", 200, 75);
+    ctx.fillText("No flying airplanes! 🚫✈️", 400, 75);
+    ctx.fillText("Recess Bell: " + Math.max(0, Math.ceil(state.classTimer)) + "s", 600, 75);
+
+    // Alphabet Banner
+    ctx.fillStyle = '#f1c40f';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText("A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 🍎🎒✏️", 15, 12);
+
+    // Tree Window
+    drawRoundedRect(15, 25, 60, 75, 4, '#87ceeb', '#2c3e50', 3);
+    ctx.fillStyle = '#27ae60';
+    ctx.beginPath();
+    ctx.arc(30, 85, 14, 0, Math.PI * 2);
+    ctx.arc(45, 80, 18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#2c3e50';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(15, 62); ctx.lineTo(75, 62);
+    ctx.moveTo(45, 25); ctx.lineTo(45, 100);
+    ctx.stroke();
+
+    // Side Door
+    drawRoundedRect(728, 12, 54, 105, 4, '#8a4c2d', '#2c3e50', 3.5);
+    ctx.beginPath();
+    ctx.arc(738, 65, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#f1c40f';
+    ctx.fill(); ctx.stroke();
+
+    // 3. Render Desks (Bottom up)
+    const colSpacing = 135;
+    const startX = 130;
+    const row1Y = 240;
+    const row2Y = 390;
+
+    for (let i = 0; i < 10; i++) {
+        const isRow2 = i >= 5;
+        const colIndex = i % 5;
+        const hX = startX + (colIndex * colSpacing);
+        const hY = isRow2 ? row2Y : row1Y;
+        drawDesk(hX, hY);
+    }
+
+    // 4. Render Students sorted by currentY (depth layers sorting)
+    const sorted = [...state.students].sort((a, b) => a.currentY - b.currentY);
+    sorted.forEach(student => {
+        drawStudent(student);
+    });
+
+    // 5. Projectiles
+    state.projectiles.forEach(p => {
+        if (p.type === 'PAPER_AIRPLANE') {
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.angle);
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(11, 0);
+            ctx.lineTo(-7, -5);
+            ctx.lineTo(-3, 0);
+            ctx.lineTo(-7, 5);
+            ctx.closePath();
+            ctx.fill(); ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(11, 0);
+            ctx.lineTo(-3, 0);
+            ctx.stroke();
+            ctx.restore();
+        } else {
+            drawWobblyCircle(p.x, p.y, 4, '#bdc3c7', '#7f8c8d', 1.2);
+        }
+    });
+
+    // 6. Floating Feedback text
+    state.floatingTexts.forEach(txt => {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, Math.min(1, txt.life));
+        ctx.fillStyle = txt.color;
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3.5;
+        ctx.font = 'bold 15px "Comic Sans MS", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.strokeText(txt.text, txt.x, txt.y);
+        ctx.fillText(txt.text, txt.x, txt.y);
+        ctx.restore();
+    });
+
+    // 7. Render radial selection menu
+    if (state.selectedStudentId !== -1) {
+        const sel = state.students.find(s => s.id === state.selectedStudentId);
+        if (sel) {
+            drawRadialMenu(sel);
+        }
+    }
+
+    drawHUD();
+
+    ctx.restore();
+
+    // States Overlay pages
+    if (state.gameState === 'MAIN_MENU') {
+        drawMainMenuScreen();
+    } else if (state.gameState === 'GAME_OVER') {
+        drawGameOverScreen();
+    } else if (state.gameState === 'VICTORY') {
+        drawVictoryScreen();
+    }
+}
+
+// --- ENGINE RECURSION ---
+
+let lastTime = 0;
+
+function loop(timestamp) {
+    if (!lastTime) lastTime = timestamp;
+    let dt = (timestamp - lastTime) / 1000.0;
+    if (dt > 0.1) dt = 0.1; // clamp to protect frame jumps on unfocus
+
+    lastTime = timestamp;
+
+    update(dt);
     render();
 
-    requestAnimationFrame(gameLoop);
+    requestAnimationFrame(loop);
 }
 
-// Trigger Initial Render
+// Register Listeners
+canvas.addEventListener('click', handleCanvasClick);
+canvas.addEventListener('mousemove', handleCanvasMouseMove);
+
+// Initial start setup
 resetGame();
-requestAnimationFrame(gameLoop);
+requestAnimationFrame(loop);
