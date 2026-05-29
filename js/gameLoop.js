@@ -169,17 +169,14 @@ function drawStudentFace(s) {
     const y = s.currentY;
     const expr = s.expressionState;
 
-    // Base head circular fill - Shifted up by 5 pixels
     let faceSkinColor = '#ffe0bd';
     if (expr === 'AGGRESSIVE') {
         faceSkinColor = '#f5b7b1';
     }
     drawWobblyCircle(x, y - 10, 17, faceSkinColor, '#000000', 2.5);
 
-    // Draw Hair - Passed with y - 5 offset to shift up by 5 pixels
     drawHairstyle(x, y - 5, s.hairStyle);
 
-    // Eyes - Shifted up by 5 pixels
     if (s.isBlinking) {
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 3;
@@ -220,7 +217,6 @@ function drawStudentFace(s) {
         }
     }
 
-    // Animated mouth vector styles - Shifted up by 5 pixels
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2.5;
     if (expr === 'BORED') {
@@ -286,44 +282,8 @@ function drawBackground() {
         ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(800, i + 80); ctx.stroke();
     }
 
+    // Clean Dark Green Blackboard Slate (Blurry/Hazy text has been removed completely)
     drawRoundedRect(120, 15, 560, 100, 8, '#1e3f20', '#5c4033', 8);
-
-    ctx.strokeStyle = 'rgba(255,255,255,0.45)';
-    ctx.font = '11px "Courier New"';
-    ctx.strokeText("2 + 2 = 🐟", 140, 45);
-    ctx.strokeText("DETENTION COUNT: 10", 140, 75);
-    ctx.strokeText("CLASSROOM RULES:", 485, 35);
-    ctx.strokeText("- No spitballs!", 485, 55);
-    ctx.strokeText("- Shh!", 485, 75);
-
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-    ctx.lineWidth = 1.5;
-
-    ctx.beginPath();
-    ctx.arc(360, 52, 12, 0, Math.PI * 2);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(352, 42); ctx.quadraticCurveTo(348, 32, 345, 36);
-    ctx.moveTo(368, 42); ctx.quadraticCurveTo(372, 32, 375, 36);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(360, 64); ctx.lineTo(360, 85);
-    ctx.moveTo(350, 72); ctx.lineTo(370, 72);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(354, 48); ctx.lineTo(358, 52);
-    ctx.moveTo(358, 48); ctx.lineTo(354, 52);
-    ctx.moveTo(362, 48); ctx.lineTo(366, 52);
-    ctx.moveTo(366, 48); ctx.lineTo(362, 52);
-    ctx.moveTo(356, 58); ctx.quadraticCurveTo(360, 54, 364, 58);
-    ctx.stroke();
-    
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
-    ctx.font = 'bold 9px "Courier New"';
-    ctx.fillText("← TEACHER!", 382, 56);
 
     const teachX = 400;
     const teachY = 120;
@@ -722,6 +682,45 @@ function drawMainMenu() {
     ctx.fillStyle = '#af7ac5';
     ctx.fillText("➔ Choose 'SEPARATE' (↔️)", boardX + 270, tableY + 90);
 
+    // --- VISUAL DIFFICULTY SELECTOR SEGMENT ---
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 12px "Comic Sans MS", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText("SELECT DIFFICULTY LEVEL:", 400, 394);
+
+    const easyX1 = 210, easyX2 = 310;
+    const medX1 = 330, medX2 = 470;
+    const hardX1 = 490, hardX2 = 590;
+    const diffY = 401;
+    const diffH = 26;
+
+    // Easy Selector Button
+    const easyHover = (state.mouseX >= easyX1 && state.mouseX <= easyX2 && state.mouseY >= diffY && state.mouseY <= diffY + diffH);
+    const isEasySelected = (state.difficulty === 'EASY');
+    ctx.fillStyle = isEasySelected ? '#2ecc71' : (easyHover ? '#27ae60' : '#1a252f');
+    drawRoundedRect(easyX1, diffY, easyX2 - easyX1, diffH, 6, ctx.fillStyle, '#ffffff', isEasySelected ? 2 : 1);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11px "Comic Sans MS", Arial, sans-serif';
+    ctx.fillText("EASY", (easyX1 + easyX2) / 2, diffY + 16);
+
+    // Medium Selector Button
+    const medHover = (state.mouseX >= medX1 && state.mouseX <= medX2 && state.mouseY >= diffY && state.mouseY <= diffY + diffH);
+    const isMedSelected = (state.difficulty === 'MEDIUM');
+    ctx.fillStyle = isMedSelected ? '#f1c40f' : (medHover ? '#d4ac0d' : '#1a252f');
+    drawRoundedRect(medX1, diffY, medX2 - medX1, diffH, 6, ctx.fillStyle, '#ffffff', isMedSelected ? 2 : 1);
+    ctx.fillStyle = isMedSelected ? '#1a252f' : '#ffffff';
+    ctx.font = 'bold 11px "Comic Sans MS", Arial, sans-serif';
+    ctx.fillText("MEDIUM", (medX1 + medX2) / 2, diffY + 16);
+
+    // Hard Selector Button
+    const hardHover = (state.mouseX >= hardX1 && state.mouseX <= hardX2 && state.mouseY >= diffY && state.mouseY <= diffY + diffH);
+    const isHardSelected = (state.difficulty === 'HARD');
+    ctx.fillStyle = isHardSelected ? '#e74c3c' : (hardHover ? '#c0392b' : '#1a252f');
+    drawRoundedRect(hardX1, diffY, hardX2 - hardX1, diffH, 6, ctx.fillStyle, '#ffffff', isHardSelected ? 2 : 1);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11px "Comic Sans MS", Arial, sans-serif';
+    ctx.fillText("HARD", (hardX1 + hardX2) / 2, diffY + 16);
+
     const bobOffset = Math.sin(Date.now() / 200) * 3;
 
     const leftX = 80;
@@ -949,6 +948,21 @@ function updateGame(dt) {
         }
     }
 
+    // Adapt gameplay parameters dynamic variables on selected difficulty level
+    let aiInterval = 2.5;
+    let aiTriggerChance = 0.40;
+    let chaosMultiplier = 1.0;
+
+    if (state.difficulty === 'EASY') {
+        aiInterval = 3.5;
+        aiTriggerChance = 0.25;
+        chaosMultiplier = 0.6;
+    } else if (state.difficulty === 'HARD') {
+        aiInterval = 1.8;
+        aiTriggerChance = 0.55;
+        chaosMultiplier = 1.45;
+    }
+
     let frameChaosSum = 0.0;
     state.students.forEach(s => {
         if (s.state === 'TALKING') frameChaosSum += 1.5;
@@ -956,7 +970,7 @@ function updateGame(dt) {
         else if (s.state === 'THROWING') frameChaosSum += 3.0;
         else if (s.state === 'FIGHTING') frameChaosSum += 5.0;
     });
-    state.chaosMeter += frameChaosSum * dt;
+    state.chaosMeter += frameChaosSum * chaosMultiplier * dt;
     state.chaosMeter = Math.max(0.0, Math.min(100.0, state.chaosMeter));
 
     if (state.chaosMeter > 75.0) {
@@ -981,12 +995,12 @@ function updateGame(dt) {
     });
 
     state.aiTimer += dt;
-    if (state.aiTimer >= 2.5) {
+    if (state.aiTimer >= aiInterval) {
         state.aiTimer = 0.0;
         
         state.students.forEach(s => {
             if (s.state === 'ATTENTIVE') {
-                if (Math.random() < 0.40) {
+                if (Math.random() < aiTriggerChance) {
                     const roll = Math.random();
                     if (roll < 0.40) {
                         s.state = 'TALKING';
@@ -1221,6 +1235,20 @@ function handleCanvasClick(e) {
     const my = (e.clientY - rect.top) * (600 / rect.height);
 
     if (state.gameState === 'MAIN_MENU') {
+        // Handle Difficulty Selector Button Clicks
+        const diffY = 401;
+        const diffH = 26;
+        if (my >= diffY && my <= diffY + diffH) {
+            if (mx >= 210 && mx <= 310) {
+                state.difficulty = 'EASY';
+            } else if (mx >= 330 && mx <= 470) {
+                state.difficulty = 'MEDIUM';
+            } else if (mx >= 490 && mx <= 590) {
+                state.difficulty = 'HARD';
+            }
+        }
+
+        // Clicked START GAME
         if (mx >= 300 && mx <= 500 && my >= 445 && my <= 505) {
             resetGame();
             state.gameState = 'PLAYING';
@@ -1370,7 +1398,9 @@ function handleCanvasMouseMove(e) {
             });
         }
     } else if (state.gameState === 'MAIN_MENU') {
-        if (state.mouseX >= 300 && state.mouseX <= 500 && state.mouseY >= 445 && state.mouseY <= 505) hoverActive = true;
+        const isOverStart = (state.mouseX >= 300 && state.mouseX <= 500 && state.mouseY >= 445 && state.mouseY <= 505);
+        const isOverDifficulty = (state.mouseY >= 401 && state.mouseY <= 427 && state.mouseX >= 210 && state.mouseX <= 590);
+        if (isOverStart || isOverDifficulty) hoverActive = true;
     } else if (state.gameState === 'GAME_OVER') {
         if (state.mouseX >= 320 && state.mouseX <= 480 && state.mouseY >= 440 && state.mouseY <= 500) hoverActive = true;
     } else if (state.gameState === 'VICTORY') {
