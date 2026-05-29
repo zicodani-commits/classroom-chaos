@@ -292,7 +292,7 @@ function drawDesk(x, y) {
 
 function drawTeacher() {
     const tx = 400;
-    const ty = 145; // Front of class coordinate
+    const ty = 145; 
 
     // 1. Teacher's Desk
     ctx.fillStyle = 'rgba(0,0,0,0.18)';
@@ -762,14 +762,22 @@ function drawRadialMenu(student) {
 
 function drawHUD() {
     const x = 150, y = 556, w = 500, h = 24;
+    
+    // --- LEGIBILITY FIX 1: Shift dark panel background to start at x=15 to support right-aligned label ---
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
-    drawRoundedRect(120, 542, 560, 48, 10, 'rgba(0,0,0,0.65)');
+    drawRoundedRect(15, 542, 665, 48, 10, 'rgba(0,0,0,0.65)');
 
+    // --- LEGIBILITY FIX 2: Thick dark outline on the text label "CHAOS METER" ---
+    ctx.save();
     ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3.5;
     ctx.font = 'bold 12px "Comic Sans MS", Arial, sans-serif';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
+    ctx.strokeText("CHAOS METER:", x - 10, y + h / 2);
     ctx.fillText("CHAOS METER:", x - 10, y + h / 2);
+    ctx.restore();
 
     drawRoundedRect(x, y, w, h, 6, '#2c3e50', '#ffffff', 2);
 
@@ -810,11 +818,11 @@ function drawHUD() {
         ctx.restore();
     }
 
-    // --- LEGIBILITY FIX: High Contrast outline on HUD Text ---
+    // --- LEGIBILITY FIX 3: High Contrast outline on HUD Percentage value ---
     ctx.save();
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 3.5;
     ctx.font = 'bold 12px "Comic Sans MS", Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -1055,7 +1063,7 @@ function handleCanvasClick(e) {
     if (state.gameState === 'MAIN_MENU') {
         playSound('click');
 
-        // Click coordinates for 4-tier difficulty selection
+        // Click coordinates for updated 4-tier difficulty selection
         if (my >= 360 && my <= 395) {
             if (mx >= 176 && mx <= 276) {
                 state.difficulty = 'EASY';
