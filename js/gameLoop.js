@@ -683,6 +683,9 @@ function drawMainMenu() {
     drawRoundedRect(boardX - 6, boardY - 6, boardW + 12, boardH + 12, 12, '#5c4033');
     drawRoundedRect(boardX, boardY, boardW, boardH, 8, '#1e3f20');
 
+    // EXPLICIT ALIGNMENT RESET: Fixes text centering inside blackboard
+    ctx.textAlign = 'left';
+
     ctx.fillStyle = '#f1c40f';
     ctx.font = '900 16px "Comic Sans MS", Arial, sans-serif';
     ctx.fillText("📋 CLASSROOM DISCIPLINE PROTOCOL", boardX + 30, boardY + 32);
