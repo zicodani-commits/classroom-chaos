@@ -25,6 +25,7 @@ export const RADIAL_ACTIONS = [
 // Global Game State Container
 export const state = {
     gameState: 'MAIN_MENU', // MAIN_MENU, PLAYING, GAME_OVER, VICTORY
+    difficulty: 'MEDIUM', // EASY, MEDIUM, HARD
     classTimer: 60.0,
     chaosMeter: 0.0,
     selectedStudentId: -1,
