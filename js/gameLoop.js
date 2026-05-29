@@ -82,15 +82,13 @@ function playSound(type) {
             osc.stop(now + 0.25);
             break;
         case 'bell':
-            // High metal ringing
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(987.77, now); // B5 Note
+            osc.frequency.setValueAtTime(987.77, now);
             gainNode.gain.setValueAtTime(0.2, now);
             gainNode.gain.exponentialRampToValueAtTime(0.01, now + 1.2);
             osc.start(now);
             osc.stop(now + 1.2);
 
-            // Secondary oscillator for metallic ring
             const osc2 = audioCtx.createOscillator();
             const gain2 = audioCtx.createGain();
             osc2.type = 'sine';
@@ -136,7 +134,7 @@ function spawnFloatingText(x, y, text, color) {
         y: y,
         text: text,
         color: color || '#FFF',
-        life: 1.2 // seconds
+        life: 1.2
     });
 }
 
@@ -260,20 +258,16 @@ function drawHairstyle(x, y, style) {
 }
 
 function drawDesk(x, y) {
-    // Desk Leg Shadows
     ctx.fillStyle = 'rgba(0,0,0,0.15)';
     ctx.fillRect(x - 42, y + 15, 6, 35);
     ctx.fillRect(x + 36, y + 15, 6, 35);
 
-    // Desk Legs
     ctx.fillStyle = '#34495e';
     ctx.fillRect(x - 40, y + 10, 5, 40);
     ctx.fillRect(x + 35, y + 10, 5, 40);
 
-    // Desktop
     drawRoundedRect(x - 50, y + 2, 100, 22, 6, '#d35400', '#5c3a21', 3);
 
-    // Sheet of Homework Paper on Desk
     drawRoundedRect(x - 22, y + 6, 20, 12, 2, '#ffffff', '#bdc3c7', 1.5);
     ctx.strokeStyle = '#7f8c8d';
     ctx.lineWidth = 1;
@@ -282,7 +276,6 @@ function drawDesk(x, y) {
     ctx.moveTo(x - 18, y + 13); ctx.lineTo(x - 10, y + 13);
     ctx.stroke();
 
-    // Red Pencil Holder Cup
     ctx.beginPath();
     ctx.arc(x + 24, y + 8, 5, 0, Math.PI*2);
     ctx.fillStyle = '#e74c3c';
@@ -292,9 +285,240 @@ function drawDesk(x, y) {
     ctx.stroke();
 }
 
+// --- NEW ELEMENT: CARTOON TEACHER RENDERING ---
+
+function drawTeacher() {
+    const tx = 400;
+    const ty = 145; // Front of class coordinate
+
+    // 1. Teacher's Desk
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.fillRect(tx - 65, ty + 12, 130, 25);
+    
+    // Desk legs
+    ctx.fillStyle = '#2c3e50';
+    ctx.fillRect(tx - 55, ty + 5, 6, 30);
+    ctx.fillRect(tx + 49, ty + 5, 6, 30);
+    
+    // Front desk panel
+    drawRoundedRect(tx - 60, ty + 2, 120, 18, 4, '#8a4c2d', '#5c3a21', 3);
+
+    // Laptop & coffee mug on the desk
+    drawRoundedRect(tx - 30, ty + 5, 18, 10, 1, '#7f8c8d', '#34495e', 1);
+    ctx.fillStyle = '#fff';
+    // Coffee cup
+    ctx.fillStyle = '#e74c3c';
+    ctx.fillRect(tx + 25, ty + 4, 8, 8);
+    ctx.fillStyle = '#f1c40f'; // handle
+    ctx.fillRect(tx + 31, ty + 6, 3, 4);
+
+    // Steam animation
+    const steamDrift = Math.sin(Date.now() * 0.008) * 1.5;
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(tx + 29, ty + 2);
+    ctx.bezierCurveTo(tx + 29 + steamDrift, ty - 3, tx + 27 - steamDrift, ty - 6, tx + 28, ty - 10);
+    ctx.stroke();
+
+    // 2. Animated Teacher Body (based on chaos)
+    ctx.save();
+    let bodyY = ty - 14;
+    let bob = Math.sin(Date.now() * 0.004) * 1.5;
+    
+    let stateStyle = 'CALM';
+    if (state.chaosMeter >= 0.7) {
+        stateStyle = 'PANICKED';
+    } else if (state.chaosMeter >= 0.4) {
+        stateStyle = 'STRESSED';
+    }
+
+    // Arms waving if panicked
+    if (stateStyle === 'PANICKED') {
+        bob = Math.sin(Date.now() * 0.02) * 4;
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3.5;
+        // Waving left arm
+        ctx.beginPath();
+        ctx.moveTo(tx - 12, bodyY + 10);
+        ctx.lineTo(tx - 26, bodyY - 12 + Math.sin(Date.now() * 0.035) * 8);
+        ctx.stroke();
+        // Waving right arm
+        ctx.beginPath();
+        ctx.moveTo(tx + 12, bodyY + 10);
+        ctx.lineTo(tx + 26, bodyY - 12 + Math.cos(Date.now() * 0.035) * 8);
+        ctx.stroke();
+    } else if (stateStyle === 'STRESSED') {
+        bob = Math.sin(Date.now() * 0.01) * 2;
+    }
+
+    // Teacher torso
+    ctx.fillStyle = '#9b59b6'; // Purple top
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(tx - 14, bodyY + 22);
+    ctx.quadraticCurveTo(tx, bodyY, tx + 14, bodyY + 22);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+
+    // Teacher Head
+    const headY = bodyY - 5 + bob;
+    drawWobblyCircle(tx, headY, 13, '#ffdbac', '#000000', 2.5);
+
+    // Hair bun
+    ctx.fillStyle = '#7e5109';
+    ctx.beginPath();
+    ctx.arc(tx, headY - 13, 8, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+
+    // Eyes
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(tx - 4, headY - 2, 3, 0, Math.PI * 2);
+    ctx.arc(tx + 4, headY - 2, 3, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#000000';
+    ctx.beginPath();
+    ctx.arc(tx - 4, headY - 2, 1, 0, Math.PI * 2);
+    ctx.arc(tx + 4, headY - 2, 1, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Glasses
+    ctx.strokeStyle = '#f1c40f';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(tx - 4, headY - 2, 4.5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(tx + 4, headY - 2, 4.5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(tx - 1, headY - 2); ctx.lineTo(tx + 1, headY - 2);
+    ctx.stroke();
+
+    // Mouth reaction
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    if (stateStyle === 'PANICKED') {
+        ctx.fillStyle = '#800c0c';
+        ctx.beginPath();
+        ctx.arc(tx, headY + 5, 3.5 + Math.sin(Date.now() * 0.04) * 1.5, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+        
+        // Screaming bubble
+        ctx.font = 'bold 9px "Comic Sans MS", Arial, sans-serif';
+        drawRoundedRect(tx + 22, headY - 28, 62, 16, 4, '#fff', '#e74c3c', 1.5);
+        ctx.fillStyle = '#e74c3c';
+        ctx.fillText("QUIET!!!", tx + 53, headY - 20);
+    } else if (stateStyle === 'STRESSED') {
+        // Straight stressed line
+        ctx.beginPath();
+        ctx.moveTo(tx - 4, headY + 5);
+        ctx.lineTo(tx + 4, headY + 5);
+        ctx.stroke();
+
+        // Sweat droplet animation
+        const sweatY = headY - 4 + (Date.now() * 0.04) % 15;
+        if (sweatY < headY + 10) {
+            ctx.fillStyle = '#3498db';
+            ctx.beginPath();
+            ctx.moveTo(tx - 12, sweatY);
+            ctx.lineTo(tx - 14, sweatY + 3);
+            ctx.lineTo(tx - 10, sweatY + 3);
+            ctx.closePath();
+            ctx.fill();
+        }
+    } else {
+        // Calm smile
+        ctx.beginPath();
+        ctx.arc(tx, headY + 4, 3.5, 0, Math.PI);
+        ctx.stroke();
+    }
+
+    ctx.restore();
+}
+
+// --- NEW ELEMENT: CARTOON DUST-CLOUD FIGHT GAMEPLAY ---
+
+function drawFightCloud(studentA, studentB) {
+    const midX = (studentA.currentX + studentB.currentX) / 2;
+    const midY = (studentA.currentY + studentB.currentY) / 2;
+
+    ctx.save();
+    
+    // Impact Sparks
+    const t = Date.now() * 0.012;
+    ctx.strokeStyle = '#e74c3c';
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 6; i++) {
+        const ang = t + (i / 6) * Math.PI * 2;
+        const len = 34 + Math.sin(t * 3.5 + i) * 6;
+        ctx.beginPath();
+        ctx.moveTo(midX, midY);
+        ctx.lineTo(midX + Math.cos(ang) * len, midY + Math.sin(ang) * len);
+        ctx.stroke();
+    }
+
+    // Overlapping cloud puffs
+    ctx.fillStyle = '#ecf0f1';
+    ctx.strokeStyle = '#bdc3c7';
+    ctx.lineWidth = 2.5;
+    for (let i = 0; i < 8; i++) {
+        const ang = (i / 8) * Math.PI * 2;
+        const dist = 16 + Math.sin(t * 2.2 + i) * 5;
+        const cx = midX + Math.cos(ang) * dist;
+        const cy = midY + Math.sin(ang) * dist;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 21, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+    }
+
+    // Visual indicators popping out
+    ctx.fillStyle = '#2c3e50';
+    ctx.font = 'bold 15px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText("💥", midX + Math.sin(t) * 18, midY + Math.cos(t) * 18);
+    ctx.fillText("💨", midX + Math.cos(t * 1.4) * 22, midY + Math.sin(t * 1.4) * 22);
+    ctx.fillText("⭐", midX + Math.sin(t * 1.8) * 24, midY - Math.cos(t * 1.8) * 24);
+    ctx.fillText("⚔️", midX - Math.cos(t * 2) * 20, midY + Math.sin(t * 2) * 20);
+
+    // Limbs sticking out in respective tunic colors
+    ctx.fillStyle = studentA.bodyColor;
+    ctx.beginPath();
+    ctx.arc(midX - 22 + Math.sin(t * 3.8) * 4, midY + 8 + Math.cos(t * 3.8) * 4, 5.5, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+
+    ctx.fillStyle = studentB.bodyColor;
+    ctx.beginPath();
+    ctx.arc(midX + 22 + Math.cos(t * 4.2) * 4, midY - 10 + Math.sin(t * 4.2) * 4, 5.5, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+
+    // Floating Alert Box
+    const boxY = midY - 44 + Math.sin(Date.now() * 0.008) * 2.5;
+    drawRoundedRect(midX - 16, boxY - 13, 32, 21, 5, '#e74c3c', '#ffffff', 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillText("FIGHT", midX, boxY + 1.5);
+
+    ctx.restore();
+}
+
 function drawStudent(student) {
     const x = student.currentX;
     const y = student.currentY;
+
+    // Skip normal rendering if this student is currently in a fight cloud.
+    // The unified dust cloud handles both students visually in one function call.
+    if (student.state === 'FIGHTING') {
+        if (student.id < student.targetStudentId) {
+            const partner = state.students.find(s => s.id === student.targetStudentId);
+            if (partner) {
+                drawFightCloud(student, partner);
+            }
+        }
+        return; 
+    }
 
     // 1. Chair backrest (Seated students only)
     if (student.state !== 'STANDING') {
@@ -321,20 +545,17 @@ function drawStudent(student) {
     ctx.stroke();
 
     // Hands
-    ctx.fillStyle = '#ffdbac'; // standard peach skin
+    ctx.fillStyle = '#ffdbac';
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
     if (student.state === 'DISTRACTED' && student.expressionState === 'PHONE') {
-        // Hands holding a glowing screen
         ctx.beginPath();
         ctx.arc(x - 6, y + 32, 4.5, 0, Math.PI * 2);
         ctx.arc(x + 6, y + 32, 4.5, 0, Math.PI * 2);
         ctx.fill(); ctx.stroke();
 
-        // Phone Case
         drawRoundedRect(x - 8, y + 23, 16, 9, 1.5, '#34495e', '#2c3e50', 1);
 
-        // Screen Glow effect
         const glow = ctx.createRadialGradient(x, y + 25, 2, x, y + 25, 14);
         glow.addColorStop(0, 'rgba(52, 152, 219, 0.7)');
         glow.addColorStop(1, 'rgba(52, 152, 219, 0)');
@@ -343,7 +564,6 @@ function drawStudent(student) {
         ctx.arc(x, y + 25, 14, 0, Math.PI * 2);
         ctx.fill();
     } else {
-        // Static relaxed hands
         ctx.beginPath();
         ctx.arc(x - 11, y + 39, 4, 0, Math.PI * 2);
         ctx.arc(x + 11, y + 39, 4, 0, Math.PI * 2);
@@ -378,24 +598,21 @@ function drawStudent(student) {
         ctx.moveTo(headX + spacing - 4, eyeHeight); ctx.lineTo(headX + spacing + 4, eyeHeight);
         ctx.stroke();
     } else {
-        // Left eye
         ctx.beginPath();
         ctx.arc(headX - spacing, eyeHeight, 3.8, 0, Math.PI * 2);
         ctx.fill(); ctx.stroke();
-        // Right eye
         ctx.beginPath();
         ctx.arc(headX + spacing, eyeHeight, 3.8, 0, Math.PI * 2);
         ctx.fill(); ctx.stroke();
 
-        // Pupils
         ctx.fillStyle = '#000000';
         let lookX = 0;
-        let lookY = 1.2; // default down-ish look
+        let lookY = 1.2;
         if (student.state === 'TALKING') {
             lookX = (student.id % 2 === 0) ? 1.5 : -1.5;
             lookY = 0;
         } else if (student.expressionState === 'PHONE') {
-            lookX = 0; lookY = 2.0; // looking down at phone
+            lookX = 0; lookY = 2.0;
         }
         ctx.beginPath();
         ctx.arc(headX - spacing + lookX, eyeHeight + lookY, 1.5, 0, Math.PI * 2);
@@ -440,13 +657,12 @@ function drawStudent(student) {
         ctx.moveTo(headX - 4, mouthHeight); ctx.quadraticCurveTo(headX, mouthHeight - 3, headX + 4, mouthHeight);
         ctx.stroke();
     } else {
-        // Bored / attentive flat mouth
         ctx.beginPath();
         ctx.moveTo(headX - 5, mouthHeight); ctx.lineTo(headX + 5, mouthHeight);
         ctx.stroke();
     }
 
-    // 6. Action-State Warning Badges
+    // Action-State Warning Badges
     if (student.state !== 'ATTENTIVE' && student.state !== 'QUIETED') {
         let badge = '';
         if (student.state === 'TALKING') badge = '🗣️';
@@ -463,7 +679,6 @@ function drawStudent(student) {
             ctx.fillText(badge, headX, bY + 3);
         }
     } else if (student.state === 'QUIETED') {
-        // Shiny green halo for quieted students
         ctx.strokeStyle = '#2ecc71';
         ctx.lineWidth = 2.5;
         ctx.beginPath();
@@ -471,7 +686,7 @@ function drawStudent(student) {
         ctx.stroke();
     }
 
-    // 7. Bubble Chat Text
+    // Bubble Chat Text
     if (student.state === 'TALKING' && student.talkingText) {
         ctx.font = 'bold 12px "Comic Sans MS", Arial, sans-serif';
         const str = student.talkingText;
@@ -485,7 +700,6 @@ function drawStudent(student) {
 
         drawRoundedRect(bx, by, bW, bH, 10, '#ffffff', '#2c3e50', 2.5);
 
-        // Tail
         ctx.fillStyle = '#ffffff';
         ctx.strokeStyle = '#2c3e50';
         ctx.lineWidth = 2.5;
@@ -496,7 +710,6 @@ function drawStudent(student) {
         ctx.closePath();
         ctx.fill(); ctx.stroke();
 
-        // Stitch patch inside speech bubble
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(headX - 6, by + bH - 3, 12, 4);
 
@@ -513,7 +726,6 @@ function drawRadialMenu(student) {
     const rx = student.currentX;
     const ry = student.currentY - 15;
 
-    // Dim background circle
     ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
     ctx.beginPath();
     ctx.arc(rx, ry, RADIAL_RADIUS + 25, 0, Math.PI * 2);
@@ -533,7 +745,6 @@ function drawRadialMenu(student) {
             state.hoveredRadialActionId = action.id;
         }
 
-        // Action Connector
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
         ctx.lineWidth = 3;
         ctx.setLineDash([4, 4]);
@@ -543,7 +754,6 @@ function drawRadialMenu(student) {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Button Base
         ctx.beginPath();
         ctx.arc(btnX, btnY, RADIAL_BTN_SIZE, 0, Math.PI * 2);
         ctx.fillStyle = hovered ? action.hoverColor : action.color;
@@ -552,13 +762,11 @@ function drawRadialMenu(student) {
         ctx.lineWidth = 2.5;
         ctx.stroke();
 
-        // Icon
         ctx.font = '16px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(action.icon, btnX, btnY + 1);
 
-        // Tooltip description
         if (hovered) {
             ctx.font = 'bold 12px "Comic Sans MS", Arial, sans-serif';
             const labelW = ctx.measureText(action.label).width + 12;
@@ -578,7 +786,6 @@ function drawRadialMenu(student) {
 // --- HUD AND USER INTERFACE OVERLAYS ---
 
 function drawHUD() {
-    // Chaos Panel
     const x = 150, y = 556, w = 500, h = 24;
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
     drawRoundedRect(120, 542, 560, 48, 10, 'rgba(0,0,0,0.65)');
@@ -612,7 +819,6 @@ function drawHUD() {
         ctx.fillStyle = grad;
         ctx.fillRect(x, y, fillW, h);
 
-        // Warning Hazard Stripes
         if (state.chaosMeter > 0.5) {
             ctx.fillStyle = 'rgba(255,255,255,0.15)';
             const drift = (Date.now() * 0.04) % 30;
@@ -634,7 +840,6 @@ function drawHUD() {
     ctx.textAlign = 'center';
     ctx.fillText(Math.round(state.chaosMeter * 100) + "%", x + w/2, y + h/2 + 1.2);
 
-    // Wall Clock UI (Clock represents Time Remaining)
     const cx = 745, cy = 55, r = 24;
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = '#2c3e50';
@@ -653,7 +858,6 @@ function drawHUD() {
         ctx.stroke();
     }
 
-    // Ticking ratio hand
     const maxTime = 60.0;
     const ratio = state.classTimer / maxTime;
     const clockAng = -Math.PI / 2 + (ratio * Math.PI * 2);
@@ -713,19 +917,18 @@ function drawMainMenuScreen() {
     ctx.fillStyle = '#ffffff';
     ctx.font = '15px "Comic Sans MS", Arial, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText("Click misbehaving students and pick the correct intervention before chaos hits 100%!", canvas.width / 2, 280);
+    ctx.fillText("Correct student behavior before chaos hits 100%. Watch out for erupting fights!", canvas.width / 2, 280);
 
     ctx.font = '12px "Comic Sans MS", Arial, sans-serif';
     ctx.fillStyle = '#1abc9c';
-    ctx.fillText("🗣️ QUIET for Talking • 🪑 SIT DOWN for Standing • 🎒 CONFISCATE for Distracted • ↔️ SEPARATE for Both", canvas.width / 2, 305);
+    ctx.fillText("🗣️ QUIET (Talking) • 🪑 SIT DOWN (Standing) • 🎒 CONFISCATE (Phones) • ↔️ SEPARATE (Fights/Wandering)", canvas.width / 2, 305);
 
-    // Difficulty Select Box
     ctx.fillStyle = '#2c3e50';
     drawRoundedRect(160, 335, 480, 70, 10, '#2c3e50', '#7f8c8d', 2);
 
     ctx.fillStyle = '#ecf0f1';
     ctx.font = 'bold 12px "Comic Sans MS", Arial, sans-serif';
-    ctx.fillText("CHOOSE DIFFICULTY:", canvas.width / 2, 348);
+    ctx.fillText("CHOOSE BALANCED DIFFICULTY:", canvas.width / 2, 348);
 
     const options = [
         { id: 'EASY', label: 'EASY 🍼', x: 180, color: '#2ecc71', hoverColor: '#27ae60' },
@@ -792,7 +995,6 @@ function drawVictoryScreen() {
     ctx.fillStyle = 'rgba(39, 174, 96, 0.90)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Decorative sparkles
     ctx.fillStyle = 'rgba(255,255,255,0.25)';
     for (let i = 0; i < 8; i++) {
         const sx = canvas.width / 2 + Math.cos(Date.now() * 0.001 + i) * 190;
@@ -815,7 +1017,6 @@ function drawVictoryScreen() {
     ctx.fillStyle = '#f4f6f7';
     ctx.fillText("Awesome job! You kept the students under control until the recess bell!", canvas.width / 2, 235);
 
-    // Score Calculations
     const baseVal = 2500;
     const silentBonus = Math.floor((1.0 - state.chaosMeter) * 2500);
     const bonusMulti = state.difficulty === 'HARD' ? 2.0 : state.difficulty === 'MEDIUM' ? 1.0 : 0.5;
@@ -869,7 +1070,6 @@ function handleCanvasClick(e) {
     if (state.gameState === 'MAIN_MENU') {
         playSound('click');
 
-        // Check Difficulty selections
         if (my >= 350 && my <= 395) {
             if (mx >= 180 && mx <= 300) {
                 state.difficulty = 'EASY';
@@ -880,7 +1080,6 @@ function handleCanvasClick(e) {
             }
         }
 
-        // Start button box
         if (mx >= 300 && mx <= 500 && my >= 440 && my <= 500) {
             resetGame();
             state.gameState = 'PLAYING';
@@ -952,58 +1151,88 @@ function handleRadialAction(student, action) {
     let text = '';
     let redChance = 0.12;
 
-    if (action.id === 'QUIET') {
-        if (student.state === 'TALKING') {
+    if (student.state === 'FIGHTING') {
+        // Only SEPARATE works on fighting students
+        if (action.id === 'SEPARATE') {
             success = true;
-            text = 'Quiet! 🤫';
-            redChance = 0.12;
+            text = 'Separate! ↔️';
+            redChance = 0.20; // Big reward for breaking up a fight!
+
+            const partner = state.students.find(s => s.id === student.targetStudentId);
+            
+            // Clean up student A
             student.state = 'QUIETED';
-            student.stateTimer = 9.0; // calm for 9s
+            student.stateTimer = 8.0;
             student.expressionState = 'HAPPY';
-            student.talkingText = '';
-        } else {
-            text = 'Not talking! 🤷';
-        }
-    } 
-    else if (action.id === 'SIT') {
-        if (student.state === 'STANDING') {
-            success = true;
-            text = 'Seated! 🪑';
-            redChance = 0.16;
-            student.state = 'QUIETED';
-            student.stateTimer = 7.0;
-            student.expressionState = 'HAPPY';
-            student.targetX = student.homeX;
-            student.targetY = student.homeY;
-        } else {
-            text = 'Already sitting! 🤨';
-        }
-    } 
-    else if (action.id === 'CONFISCATE') {
-        if (student.state === 'DISTRACTED') {
-            success = true;
-            text = 'No phones! 🎒';
-            redChance = 0.18;
-            student.state = 'QUIETED';
-            student.stateTimer = 6.0;
-            student.expressionState = 'BORED';
-        } else {
-            text = 'Nothing to take! 🙅';
-        }
-    } 
-    else if (action.id === 'SEPARATE') {
-        if (student.state === 'STANDING' || student.state === 'TALKING') {
-            success = true;
-            text = 'Separated! ↔️';
-            redChance = 0.10;
-            student.state = 'QUIETED';
-            student.stateTimer = 11.0;
-            student.expressionState = 'BORED';
             student.currentX = student.homeX;
             student.currentY = student.homeY;
-            student.talkingText = '';
+
+            // Clean up student B
+            if (partner) {
+                partner.state = 'QUIETED';
+                partner.stateTimer = 8.0;
+                partner.expressionState = 'HAPPY';
+                partner.currentX = partner.homeX;
+                partner.currentY = partner.homeY;
+            }
         } else {
-            text = 'No need! 😒';
+            text = 'Break it up! 💥';
+        }
+    } 
+    else {
+        if (action.id === 'QUIET') {
+            if (student.state === 'TALKING') {
+                success = true;
+                text = 'Quiet! 🤫';
+                redChance = 0.12;
+                student.state = 'QUIETED';
+                student.stateTimer = 9.0;
+                student.expressionState = 'HAPPY';
+                student.talkingText = '';
+            } else {
+                text = 'Not talking! 🤷';
+            }
+        } 
+        else if (action.id === 'SIT') {
+            if (student.state === 'STANDING') {
+                success = true;
+                text = 'Seated! 🪑';
+                redChance = 0.16;
+                student.state = 'QUIETED';
+                student.stateTimer = 7.0;
+                student.expressionState = 'HAPPY';
+                student.targetX = student.homeX;
+                student.targetY = student.homeY;
+            } else {
+                text = 'Already sitting! 🤨';
+            }
+        } 
+        else if (action.id === 'CONFISCATE') {
+            if (student.state === 'DISTRACTED') {
+                success = true;
+                text = 'No phones! 🎒';
+                redChance = 0.18;
+                student.state = 'QUIETED';
+                student.stateTimer = 6.0;
+                student.expressionState = 'BORED';
+            } else {
+                text = 'Nothing to take! 🙅';
+            }
+        } 
+        else if (action.id === 'SEPARATE') {
+            if (student.state === 'STANDING' || student.state === 'TALKING') {
+                success = true;
+                text = 'Separated! ↔️';
+                redChance = 0.10;
+                student.state = 'QUIETED';
+                student.stateTimer = 11.0;
+                student.expressionState = 'BORED';
+                student.currentX = student.homeX;
+                student.currentY = student.homeY;
+                student.talkingText = '';
+            } else {
+                text = 'No need! 😒';
+            }
         }
     }
 
@@ -1039,15 +1268,27 @@ function update(dt) {
     }
 
     state.aiTimer += dt;
-    let threshold = 1.6;
-    let speedMulti = 1.0;
+    
+    // ADJUSTED BALANCED DIFFICULTY MULTIPLIERS (Smoothed curve)
+    let threshold = 1.8;
+    let speedMulti = 0.9;
+    let allowFights = false;
+    let fightRate = 0.0;
 
     if (state.difficulty === 'EASY') {
-        threshold = 2.4;
-        speedMulti = 0.6;
+        threshold = 2.6;
+        speedMulti = 0.55;
+        allowFights = false;
+    } else if (state.difficulty === 'MEDIUM') {
+        threshold = 1.8;
+        speedMulti = 0.9;
+        allowFights = true;
+        fightRate = 0.12; // 12% probability per event trigger
     } else if (state.difficulty === 'HARD') {
-        threshold = 0.8;
-        speedMulti = 1.6;
+        threshold = 1.25;  // Raised from 0.8s for smoother pace
+        speedMulti = 1.3;   // Lowered from 1.6x for fairer ramp
+        allowFights = true;
+        fightRate = 0.24; // 24% probability per event trigger
     }
 
     if (state.aiTimer >= threshold) {
@@ -1057,14 +1298,34 @@ function update(dt) {
             const chosen = candidates[Math.floor(Math.random() * candidates.length)];
             const act = Math.random();
 
-            if (act < 0.35) {
-                // Talk
+            // Try triggering a fight with an adjacent student if allowed
+            const isFightingCurrently = state.students.some(s => s.state === 'FIGHTING');
+            if (allowFights && act < fightRate && !isFightingCurrently) {
+                // Find potential neighbors (by row index / seat positions)
+                const neighbors = candidates.filter(s => s.id !== chosen.id && Math.abs(s.id - chosen.id) === 1);
+                if (neighbors.length > 0) {
+                    const partner = neighbors[Math.floor(Math.random() * neighbors.length)];
+                    
+                    chosen.state = 'FIGHTING';
+                    chosen.stateTimer = 15.0; // Fights persist up to 15s if ignored
+                    chosen.targetStudentId = partner.id;
+
+                    partner.state = 'FIGHTING';
+                    partner.stateTimer = 15.0;
+                    partner.targetStudentId = chosen.id;
+                    
+                    spawnFloatingText((chosen.homeX + partner.homeX)/2, (chosen.homeY + partner.homeY)/2 - 10, "FIGHT OUTBREAK!", "#e74c3c");
+                    state.screenShake = 5.0;
+                    playSound('splat');
+                }
+            } 
+            // Fall back to standard distractions
+            else if (act < 0.35) {
                 chosen.state = 'TALKING';
                 chosen.stateTimer = Math.random() * 4.5 + 4;
                 chosen.talkingText = TALKING_COMMENTS[Math.floor(Math.random() * TALKING_COMMENTS.length)];
                 chosen.expressionState = 'ANGRY';
             } else if (act < 0.65) {
-                // Wander
                 chosen.state = 'STANDING';
                 chosen.stateTimer = Math.random() * 5 + 5;
                 chosen.targetX = chosen.homeX + (Math.random() * 120 - 60);
@@ -1073,16 +1334,14 @@ function update(dt) {
                 chosen.targetY = Math.max(180, Math.min(490, chosen.targetY));
                 chosen.expressionState = 'HAPPY';
             } else if (act < 0.85) {
-                // Play on Phone
                 chosen.state = 'DISTRACTED';
                 chosen.stateTimer = Math.random() * 6 + 4;
                 chosen.expressionState = 'PHONE';
             } else {
-                // Throw projectile windup
-                const victims = state.students.filter(s => s.id !== chosen.id);
+                const victims = state.students.filter(s => s.id !== chosen.id && s.state !== 'FIGHTING');
                 if (victims.length > 0) {
                     chosen.state = 'THROWING';
-                    chosen.stateTimer = 1.5; // windup delay
+                    chosen.stateTimer = 1.5;
                     chosen.targetStudentId = victims[Math.floor(Math.random() * victims.length)].id;
                     chosen.expressionState = 'ANGRY';
                 }
@@ -1107,7 +1366,7 @@ function update(dt) {
             if (student.stateTimer <= 0) {
                 if (student.state === 'THROWING') {
                     const victim = state.students.find(s => s.id === student.targetStudentId);
-                    if (victim) {
+                    if (victim && victim.state !== 'FIGHTING') {
                         playSound('throw');
                         const dx = victim.currentX - student.currentX;
                         const dy = victim.currentY - student.currentY;
@@ -1127,6 +1386,12 @@ function update(dt) {
                     }
                     student.state = 'ATTENTIVE';
                     student.expressionState = 'BORED';
+                } else if (student.state === 'FIGHTING') {
+                    // Fights naturally time out if unresolved, cooling down but leaving high chaos
+                    student.state = 'ATTENTIVE';
+                    student.expressionState = 'BORED';
+                    student.currentX = student.homeX;
+                    student.currentY = student.homeY;
                 } else {
                     student.state = 'ATTENTIVE';
                     student.expressionState = 'BORED';
@@ -1135,7 +1400,23 @@ function update(dt) {
         }
 
         // Student physics movement interpolation
-        if (student.state === 'STANDING') {
+        if (student.state === 'FIGHTING') {
+            const partner = state.students.find(s => s.id === student.targetStudentId);
+            if (partner) {
+                const midX = (student.homeX + partner.homeX) / 2;
+                const midY = (student.homeY + partner.homeY) / 2;
+                const dx = midX - student.currentX;
+                const dy = midY - student.currentY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 5) {
+                    student.currentX += (dx / dist) * 3.5;
+                    student.currentY += (dy / dist) * 3.5;
+                } else {
+                    student.currentX = midX;
+                    student.currentY = midY;
+                }
+            }
+        } else if (student.state === 'STANDING') {
             const dx = student.targetX - student.currentX;
             const dy = student.targetY - student.currentY;
             const dist = Math.sqrt(dx * dx + dy * dy);
@@ -1156,7 +1437,7 @@ function update(dt) {
             }
         }
 
-        // Chaos rate accumulation
+        // Chaos rate accumulation per active state
         if (student.state === 'TALKING') {
             state.chaosMeter += 0.00045 * speedMulti;
         } else if (student.state === 'STANDING') {
@@ -1165,6 +1446,9 @@ function update(dt) {
             state.chaosMeter += 0.0005 * speedMulti;
         } else if (student.state === 'THROWING') {
             state.chaosMeter += 0.0003 * speedMulti;
+        } else if (student.state === 'FIGHTING') {
+            // Fights raise chaos rapidly (half weight added per student to balance pairing)
+            state.chaosMeter += 0.0011 * speedMulti; 
         }
     });
 
@@ -1189,7 +1473,7 @@ function update(dt) {
             state.screenShake = 4.0;
 
             const victim = state.students.find(s => s.id === p.targetId);
-            if (victim && (victim.state === 'ATTENTIVE' || victim.state === 'QUIETED')) {
+            if (victim && victim.state !== 'FIGHTING' && (victim.state === 'ATTENTIVE' || victim.state === 'QUIETED')) {
                 victim.state = 'DISTRACTED';
                 victim.stateTimer = 4.0;
                 victim.expressionState = 'ANGRY';
@@ -1222,7 +1506,7 @@ function render() {
         ctx.translate(dx, dy);
     }
 
-    // 1. Draw tile classroom flooring
+    // 1. Classroom flooring
     ctx.fillStyle = '#f5f5dc';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -1235,7 +1519,7 @@ function render() {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
     }
 
-    // 2. Front blackboard wall
+    // 2. Front slate wall
     ctx.fillStyle = '#2c3e50';
     ctx.fillRect(0, 0, canvas.width, 120);
     ctx.fillStyle = '#1a252f';
@@ -1280,6 +1564,9 @@ function render() {
     ctx.fillStyle = '#f1c40f';
     ctx.fill(); ctx.stroke();
 
+    // Render Teacher
+    drawTeacher();
+
     // 3. Render Desks (Bottom up)
     const colSpacing = 135;
     const startX = 130;
@@ -1294,7 +1581,7 @@ function render() {
         drawDesk(hX, hY);
     }
 
-    // 4. Render Students sorted by currentY (depth layers sorting)
+    // 4. Render Students sorted by currentY
     const sorted = [...state.students].sort((a, b) => a.currentY - b.currentY);
     sorted.forEach(student => {
         drawStudent(student);
@@ -1352,7 +1639,6 @@ function render() {
 
     ctx.restore();
 
-    // States Overlay pages
     if (state.gameState === 'MAIN_MENU') {
         drawMainMenuScreen();
     } else if (state.gameState === 'GAME_OVER') {
@@ -1369,7 +1655,7 @@ let lastTime = 0;
 function loop(timestamp) {
     if (!lastTime) lastTime = timestamp;
     let dt = (timestamp - lastTime) / 1000.0;
-    if (dt > 0.1) dt = 0.1; // clamp to protect frame jumps on unfocus
+    if (dt > 0.1) dt = 0.1;
 
     lastTime = timestamp;
 
@@ -1379,10 +1665,8 @@ function loop(timestamp) {
     requestAnimationFrame(loop);
 }
 
-// Register Listeners
 canvas.addEventListener('click', handleCanvasClick);
 canvas.addEventListener('mousemove', handleCanvasMouseMove);
 
-// Initial start setup
 resetGame();
 requestAnimationFrame(loop);
