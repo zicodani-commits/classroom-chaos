@@ -13,7 +13,7 @@ const ctx = canvas.getContext('2d');
 
 let audioCtx = null;
 
-// Ensure game defaults to our newly added "NORMAL" tier
+// Ensure game defaults to our balanced "NORMAL" tier
 state.difficulty = 'NORMAL';
 
 // --- PROCEDURAL AUDIO GENERATION (WEB AUDIO API) ---
@@ -25,6 +25,7 @@ function initAudio() {
 }
 
 function playSound(type) {
+    if (state.isMuted) return;
     if (!audioCtx) return;
     if (audioCtx.state === 'suspended') {
         audioCtx.resume();
@@ -104,6 +105,17 @@ function playSound(type) {
             osc2.stop(now + 0.9);
             break;
     }
+}
+
+// --- PHYSICAL SEATING ADJACENCY CHECK ---
+function areNeighbors(id1, id2) {
+    const row1 = Math.floor(id1 / 5);
+    const col1 = id1 % 5;
+    const row2 = Math.floor(id2 / 5);
+    const col2 = id2 % 5;
+    const rowDiff = Math.abs(row1 - row2);
+    const colDiff = Math.abs(col1 - col2);
+    return (rowDiff === 0 && colDiff === 1) || (rowDiff === 1 && colDiff === 0);
 }
 
 // --- PROCEDURAL DRAWING UTILITIES ---
@@ -288,7 +300,7 @@ function drawDesk(x, y) {
     ctx.stroke();
 }
 
-// --- CARTOON TEACHER RENDERING (BIGGER HEAD UPDATE) ---
+// --- CARTOON TEACHER RENDERING (BIGGER HEAD SECTIONS) ---
 
 function drawTeacher() {
     const tx = 400;
@@ -335,12 +347,10 @@ function drawTeacher() {
         bob = Math.sin(Date.now() * 0.02) * 4;
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 3.5;
-        // Wave Left Arm
         ctx.beginPath();
         ctx.moveTo(tx - 12, bodyY + 10);
         ctx.lineTo(tx - 28, bodyY - 14 + Math.sin(Date.now() * 0.035) * 8);
         ctx.stroke();
-        // Wave Right Arm
         ctx.beginPath();
         ctx.moveTo(tx + 12, bodyY + 10);
         ctx.lineTo(tx + 28, bodyY - 14 + Math.cos(Date.now() * 0.035) * 8);
@@ -358,17 +368,17 @@ function drawTeacher() {
     ctx.closePath();
     ctx.fill(); ctx.stroke();
 
-    // Teacher Head (Enlarged from 13 to 21 Radius for better cartoon aesthetics)
+    // Teacher Head (Enlarged head size)
     const headY = bodyY - 10 + bob; 
     drawWobblyCircle(tx, headY, 21, '#ffdbac', '#000000', 3);
 
-    // Hair bun (Scaled to Head)
+    // Hair Bun
     ctx.fillStyle = '#7e5109';
     ctx.beginPath();
     ctx.arc(tx, headY - 21, 11, 0, Math.PI * 2);
     ctx.fill(); ctx.stroke();
 
-    // Eyes (Scaled spacing/radius)
+    // Eyes
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.arc(tx - 6, headY - 3, 4.5, 0, Math.PI * 2);
@@ -380,7 +390,7 @@ function drawTeacher() {
     ctx.arc(tx + 6, headY - 3, 1.8, 0, Math.PI * 2);
     ctx.fill();
 
-    // Glasses (Scaled to head)
+    // Glasses
     ctx.strokeStyle = '#f1c40f';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
@@ -503,6 +513,18 @@ function drawStudent(student) {
             }
         }
         return; 
+    }
+
+    // Interactive Target Selector Ring
+    if (state.selectedStudentId === student.id) {
+        ctx.save();
+        ctx.strokeStyle = '#f1c40f';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.ellipse(x, y + 36, 26, 12, (Date.now() * 0.003) % (Math.PI * 2), 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
     }
 
     if (student.state !== 'STANDING') {
@@ -763,11 +785,9 @@ function drawRadialMenu(student) {
 function drawHUD() {
     const x = 150, y = 556, w = 500, h = 24;
     
-    // --- LEGIBILITY FIX 1: Shift dark panel background to start at x=15 to support right-aligned label ---
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
     drawRoundedRect(15, 542, 665, 48, 10, 'rgba(0,0,0,0.65)');
 
-    // --- LEGIBILITY FIX 2: Thick dark outline on the text label "CHAOS METER" ---
     ctx.save();
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = '#000000';
@@ -818,7 +838,6 @@ function drawHUD() {
         ctx.restore();
     }
 
-    // --- LEGIBILITY FIX 3: High Contrast outline on HUD Percentage value ---
     ctx.save();
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = '#000000';
@@ -830,6 +849,7 @@ function drawHUD() {
     ctx.fillText(Math.round(state.chaosMeter * 100) + "%", x + w/2, y + h/2);
     ctx.restore();
 
+    // Clock HUD element
     const cx = 745, cy = 55, r = 24;
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = '#2c3e50';
@@ -871,6 +891,25 @@ function drawHUD() {
     ctx.beginPath();
     ctx.arc(cx, cy, 3.5, 0, Math.PI*2);
     ctx.fill();
+
+    // --- HUD AUDIO SPEAKER CONTROLLER ---
+    const mx = 745, my = 112, mr = 16;
+    const dxMute = state.mouseX - mx;
+    const dyMute = state.mouseY - my;
+    const muteHovered = Math.sqrt(dxMute * dxMute + dyMute * dyMute) < mr;
+
+    ctx.fillStyle = muteHovered ? '#ecf0f1' : '#ffffff';
+    ctx.strokeStyle = '#2c3e50';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(mx, my, mr, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+
+    ctx.fillStyle = '#2c3e50';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(state.isMuted ? '🔇' : '🔊', mx, my);
 }
 
 function drawMainMenuScreen() {
@@ -921,7 +960,6 @@ function drawMainMenuScreen() {
     ctx.font = 'bold 12px "Comic Sans MS", Arial, sans-serif';
     ctx.fillText("CHOOSE DIFFICULTY TIER:", canvas.width / 2, 348);
 
-    // --- REBALANCED 4-LEVEL LAYOUT SELECTION ---
     const options = [
         { id: 'EASY', label: 'EASY 🍼', x: 176, color: '#2ecc71', hoverColor: '#27ae60' },
         { id: 'NORMAL', label: 'NORMAL 👦', x: 292, color: '#3498db', hoverColor: '#2980b9' },
@@ -1015,21 +1053,50 @@ function drawVictoryScreen() {
     const bonusMulti = state.difficulty === 'HARD' ? 2.0 : state.difficulty === 'MEDIUM' ? 1.0 : state.difficulty === 'NORMAL' ? 0.75 : 0.5;
     const finalVal = Math.floor((baseVal + silentBonus) * bonusMulti);
 
-    drawRoundedRect(250, 270, 300, 145, 10, 'rgba(0,0,0,0.25)', '#ffffff', 2);
+    // Determine performance card letter grade
+    let grade = 'D ⏱️';
+    let gradeColor = '#e74c3c';
+    if (finalVal >= 4000) {
+        grade = 'A+ 🏆';
+        gradeColor = '#2ecc71';
+    } else if (finalVal >= 3000) {
+        grade = 'A 🍎';
+        gradeColor = '#2ecc71';
+    } else if (finalVal >= 2000) {
+        grade = 'B 📘';
+        gradeColor = '#f1c40f';
+    } else if (finalVal >= 1000) {
+        grade = 'C ✏️';
+        gradeColor = '#e67e22';
+    }
+
+    drawRoundedRect(220, 265, 360, 155, 10, 'rgba(0,0,0,0.3)', '#ffffff', 2);
 
     ctx.fillStyle = '#f1c40f';
-    ctx.font = 'bold 13px "Comic Sans MS", Arial, sans-serif';
-    ctx.fillText("TEACHING PERFORMANCE CARD", 400, 295);
+    ctx.font = 'bold 14px "Comic Sans MS", Arial, sans-serif';
+    ctx.fillText("TEACHING PERFORMANCE CARD", 400, 288);
 
     ctx.fillStyle = '#ffffff';
     ctx.font = '12px "Comic Sans MS", Arial, sans-serif';
-    ctx.fillText(`Surviving Base Value: +${baseVal}`, 400, 320);
-    ctx.fillText(`Quietness Bonus (${Math.round((1.0 - state.chaosMeter)*100)}%): +${silentBonus}`, 400, 340);
-    ctx.fillText(`Difficulty Multiplier: x${bonusMulti}`, 400, 360);
+    ctx.textAlign = 'left';
+    ctx.fillText(`Surviving Base Value: +${baseVal}`, 240, 315);
+    ctx.fillText(`Quietness Bonus (${Math.round((1.0 - state.chaosMeter)*100)}%): +${silentBonus}`, 240, 335);
+    ctx.fillText(`Difficulty Multiplier: x${bonusMulti}`, 240, 355);
 
-    ctx.font = 'bold 18px "Comic Sans MS", Arial, sans-serif';
     ctx.fillStyle = '#f1c40f';
-    ctx.fillText(`TOTAL SCORE: ${finalVal} PTS`, 400, 393);
+    ctx.font = 'bold 16px "Comic Sans MS", Arial, sans-serif';
+    ctx.fillText(`TOTAL SCORE: ${finalVal} PTS`, 240, 395);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11px "Comic Sans MS", Arial, sans-serif';
+    ctx.fillText("FINAL GRADE", 510, 320);
+    
+    ctx.fillStyle = gradeColor;
+    ctx.font = 'bold 28px "Comic Sans MS", Arial, sans-serif';
+    ctx.fillText(grade, 510, 365);
+
+    ctx.textAlign = 'center'; // Restore alignment settings
 
     const restartHover = state.mouseX >= 300 && state.mouseX <= 500 && state.mouseY >= 450 && state.mouseY <= 500;
     drawRoundedRect(300, 450, 200, 50, 10, restartHover ? '#16a085' : '#1abc9c', '#ffffff', 3.5);
@@ -1059,6 +1126,15 @@ function handleCanvasClick(e) {
     const pos = getMousePos(e);
     const mx = pos.x;
     const my = pos.y;
+
+    // Check if HUD Mute toggle is clicked
+    const dxMute = mx - 745;
+    const dyMute = my - 112;
+    if (Math.sqrt(dxMute * dxMute + dyMute * dyMute) < 16) {
+        state.isMuted = !state.isMuted;
+        playSound('click');
+        return;
+    }
 
     if (state.gameState === 'MAIN_MENU') {
         playSound('click');
@@ -1200,7 +1276,6 @@ function handleRadialAction(student, action) {
                 text = 'Already sitting! 🤨';
             }
         } 
-        // --- UPDATED GAMEPLAY MECHANIC: Confiscate works on throwing students too ---
         else if (action.id === 'CONFISCATE') {
             if (student.state === 'DISTRACTED' || student.state === 'THROWING') {
                 success = true;
@@ -1263,31 +1338,30 @@ function update(dt) {
 
     state.aiTimer += dt;
     
-    // --- BALANCED 4-TIER DIFFICULTY SPEED AND TIMING CONFIGS ---
     let threshold = 1.8;
     let speedMulti = 0.9;
     let allowFights = false;
     let fightRate = 0.0;
 
     if (state.difficulty === 'EASY') {
-        threshold = 3.2;         // Relaxed spacing
-        speedMulti = 0.45;       // Minor chaos multiplier
-        allowFights = false;     // Fights turned off for Easy
+        threshold = 3.2;
+        speedMulti = 0.45;
+        allowFights = false;
     } else if (state.difficulty === 'NORMAL') {
-        threshold = 2.3;         // Friendly starter pace
-        speedMulti = 0.75;       // Low pressure
+        threshold = 2.3;
+        speedMulti = 0.75;
         allowFights = true;
-        fightRate = 0.08;        // Rare fights (8% chance)
+        fightRate = 0.08;
     } else if (state.difficulty === 'MEDIUM') {
-        threshold = 1.7;         // Standard simulation speed
-        speedMulti = 1.0;        // Moderate chaos rate
+        threshold = 1.7;
+        speedMulti = 1.0;
         allowFights = true;
-        fightRate = 0.16;        // Standard fights (16% chance)
+        fightRate = 0.16;
     } else if (state.difficulty === 'HARD') {
-        threshold = 1.25;        // Demanding pace
-        speedMulti = 1.35;       // Veteran intensity
+        threshold = 1.25;
+        speedMulti = 1.35;
         allowFights = true;
-        fightRate = 0.26;        // Normal fight rate (26% chance)
+        fightRate = 0.26;
     }
 
     if (state.aiTimer >= threshold) {
@@ -1299,7 +1373,8 @@ function update(dt) {
 
             const isFightingCurrently = state.students.some(s => s.state === 'FIGHTING');
             if (allowFights && act < fightRate && !isFightingCurrently) {
-                const neighbors = candidates.filter(s => s.id !== chosen.id && Math.abs(s.id - chosen.id) === 1);
+                // Ensure the candidate can only break into a fight with a horizontal or vertical neighbor
+                const neighbors = candidates.filter(s => s.id !== chosen.id && areNeighbors(s.id, chosen.id));
                 if (neighbors.length > 0) {
                     const partner = neighbors[Math.floor(Math.random() * neighbors.length)];
                     
@@ -1337,7 +1412,7 @@ function update(dt) {
                 const victims = state.students.filter(s => s.id !== chosen.id && s.state !== 'FIGHTING');
                 if (victims.length > 0) {
                     chosen.state = 'THROWING';
-                    chosen.stateTimer = 2.0; // Slightly elongated wind-up window
+                    chosen.stateTimer = 2.0;
                     chosen.targetStudentId = victims[Math.floor(Math.random() * victims.length)].id;
                     chosen.expressionState = 'ANGRY';
                 }
@@ -1553,25 +1628,44 @@ function render() {
 
     drawTeacher();
 
-    // Render Desks
+    // --- UNIFIED 2.5D DEPTH RENDERING QUEUE ---
+    const renderQueue = [];
     const colSpacing = 135;
     const startX = 130;
     const row1Y = 240;
     const row2Y = 390;
 
+    // Load Desks into the queue
     for (let i = 0; i < 10; i++) {
         const isRow2 = i >= 5;
         const colIndex = i % 5;
         const hX = startX + (colIndex * colSpacing);
         const hY = isRow2 ? row2Y : row1Y;
-        drawDesk(hX, hY);
+        renderQueue.push({
+            y: hY + 15, // Anchored to sorting depth
+            draw: () => drawDesk(hX, hY)
+        });
     }
 
-    // Render Students sorted by currentY
-    const sorted = [...state.students].sort((a, b) => a.currentY - b.currentY);
-    sorted.forEach(student => {
-        drawStudent(student);
+    // Load Students into the queue
+    state.students.forEach(student => {
+        let sortY = student.currentY + 40; // Feet depth calculation
+        if (student.state === 'FIGHTING') {
+            const partner = state.students.find(s => s.id === student.targetStudentId);
+            if (partner) {
+                // Keep dust fight sorting cohesive relative to combatants
+                sortY = (student.currentY + partner.currentY) / 2 + 20;
+            }
+        }
+        renderQueue.push({
+            y: sortY,
+            draw: () => drawStudent(student)
+        });
     });
+
+    // Execute ascending sort based on vertical depth
+    renderQueue.sort((a, b) => a.y - b.y);
+    renderQueue.forEach(item => item.draw());
 
     // Projectiles
     state.projectiles.forEach(p => {
