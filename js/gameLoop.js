@@ -169,24 +169,27 @@ function drawStudentFace(s) {
     const y = s.currentY;
     const expr = s.expressionState;
 
+    // Base head circular fill - Shifted up by 5 pixels
     let faceSkinColor = '#ffe0bd';
     if (expr === 'AGGRESSIVE') {
         faceSkinColor = '#f5b7b1';
     }
-    drawWobblyCircle(x, y - 5, 17, faceSkinColor, '#000000', 2.5);
+    drawWobblyCircle(x, y - 10, 17, faceSkinColor, '#000000', 2.5);
 
-    drawHairstyle(x, y, s.hairStyle);
+    // Draw Hair - Passed with y - 5 offset to shift up by 5 pixels
+    drawHairstyle(x, y - 5, s.hairStyle);
 
+    // Eyes - Shifted up by 5 pixels
     if (s.isBlinking) {
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.moveTo(x - 11, y - 6); ctx.lineTo(x - 3, y - 6); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(x + 3, y - 6); ctx.lineTo(x + 11, y - 6); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x - 11, y - 11); ctx.lineTo(x - 3, y - 11); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + 3, y - 11); ctx.lineTo(x + 11, y - 11); ctx.stroke();
     } else {
         ctx.fillStyle = '#ffffff';
         ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(x - 7, y - 6, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        ctx.beginPath(); ctx.arc(x + 7, y - 6, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(x - 7, y - 11, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(x + 7, y - 11, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
         ctx.fillStyle = '#000000';
         let pxOffset = 0, pyOffset = 0;
@@ -195,46 +198,47 @@ function drawStudentFace(s) {
         } else if (expr === 'ANGRY' || expr === 'AGGRESSIVE') {
             pyOffset = -1.5;
         }
-        ctx.beginPath(); ctx.arc(x - 7 + pxOffset, y - 6 + pyOffset, 2, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x + 7 + pxOffset, y - 6 + pyOffset, 2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x - 7 + pxOffset, y - 11 + pyOffset, 2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + 7 + pxOffset, y - 11 + pyOffset, 2, 0, Math.PI * 2); ctx.fill();
 
         if (expr === 'BORED') {
             ctx.fillStyle = faceSkinColor;
             ctx.beginPath();
-            ctx.arc(x - 7, y - 10, 5, 0, Math.PI, true);
-            ctx.arc(x + 7, y - 10, 5, 0, Math.PI, true);
+            ctx.arc(x - 7, y - 15, 5, 0, Math.PI, true);
+            ctx.arc(x + 7, y - 15, 5, 0, Math.PI, true);
             ctx.fill(); ctx.stroke();
         } else if (expr === 'ANGRY' || expr === 'AGGRESSIVE') {
             ctx.strokeStyle = '#000000';
             ctx.lineWidth = 2.5;
-            ctx.beginPath(); ctx.moveTo(x - 13, y - 12); ctx.lineTo(x - 3, y - 8); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(x + 13, y - 12); ctx.lineTo(x + 3, y - 8); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x - 13, y - 17); ctx.lineTo(x - 3, y - 13); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x + 13, y - 17); ctx.lineTo(x + 3, y - 13); ctx.stroke();
         } else if (expr === 'EXCITED') {
             ctx.strokeStyle = '#000000';
             ctx.lineWidth = 1.5;
-            ctx.beginPath(); ctx.arc(x - 7, y - 11, 4, Math.PI, 0); ctx.stroke();
-            ctx.beginPath(); ctx.arc(x + 7, y - 11, 4, Math.PI, 0); ctx.stroke();
+            ctx.beginPath(); ctx.arc(x - 7, y - 16, 4, Math.PI, 0); ctx.stroke();
+            ctx.beginPath(); ctx.arc(x + 7, y - 16, 4, Math.PI, 0); ctx.stroke();
         }
     }
 
+    // Animated mouth vector styles - Shifted up by 5 pixels
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2.5;
     if (expr === 'BORED') {
-        ctx.beginPath(); ctx.arc(x, y + 8, 4, Math.PI, 0, true); ctx.stroke();
+        ctx.beginPath(); ctx.arc(x, y + 3, 4, Math.PI, 0, true); ctx.stroke();
     } else if (expr === 'EXCITED') {
         ctx.fillStyle = '#e74c3c';
-        ctx.beginPath(); ctx.arc(x, y + 5, 6, 0, Math.PI); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI); ctx.closePath(); ctx.fill(); ctx.stroke();
     } else if (expr === 'SNEAKY') {
-        ctx.beginPath(); ctx.moveTo(x - 5, y + 4); ctx.quadraticCurveTo(x + 5, y + 7, x + 6, y + 2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x - 5, y - 1); ctx.quadraticCurveTo(x + 5, y + 2, x + 6, y - 3); ctx.stroke();
     } else if (expr === 'ANGRY') {
-        ctx.beginPath(); ctx.moveTo(x - 6, y + 6); ctx.lineTo(x + 6, y + 5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x - 6, y + 1); ctx.lineTo(x + 6, y); ctx.stroke();
     } else if (expr === 'AGGRESSIVE') {
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(x - 7, y + 3, 14, 6);
-        ctx.strokeRect(x - 7, y + 3, 14, 6);
-        ctx.beginPath(); ctx.moveTo(x - 7, y + 6); ctx.lineTo(x + 7, y + 6); ctx.stroke();
+        ctx.fillRect(x - 7, y - 2, 14, 6);
+        ctx.strokeRect(x - 7, y - 2, 14, 6);
+        ctx.beginPath(); ctx.moveTo(x - 7, y + 1); ctx.lineTo(x + 7, y + 1); ctx.stroke();
     } else {
-        ctx.beginPath(); ctx.arc(x, y + 4, 5, 0, Math.PI); ctx.stroke();
+        ctx.beginPath(); ctx.arc(x, y - 1, 5, 0, Math.PI); ctx.stroke();
     }
 }
 
@@ -683,7 +687,6 @@ function drawMainMenu() {
     drawRoundedRect(boardX - 6, boardY - 6, boardW + 12, boardH + 12, 12, '#5c4033');
     drawRoundedRect(boardX, boardY, boardW, boardH, 8, '#1e3f20');
 
-    // EXPLICIT ALIGNMENT RESET: Fixes text centering inside blackboard
     ctx.textAlign = 'left';
 
     ctx.fillStyle = '#f1c40f';
