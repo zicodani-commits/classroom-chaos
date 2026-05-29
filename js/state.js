@@ -25,7 +25,7 @@ export const RADIAL_ACTIONS = [
 // Global Game State Container
 export const state = {
     gameState: 'MAIN_MENU', // MAIN_MENU, PLAYING, GAME_OVER, VICTORY
-    difficulty: 'MEDIUM', // EASY, MEDIUM, HARD
+    difficulty: 'NORMAL', // EASY, NORMAL, MEDIUM, HARD
     classTimer: 60.0,
     chaosMeter: 0.0,
     selectedStudentId: -1,
@@ -36,7 +36,8 @@ export const state = {
     floatingTexts: [],
     mouseX: 0,
     mouseY: 0,
-    hoveredRadialActionId: ''
+    hoveredRadialActionId: '',
+    isMuted: false
 };
 
 // Reinitializes simulation parameters
